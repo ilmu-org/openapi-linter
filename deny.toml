@@ -1,0 +1,98 @@
+# cargo-deny configuration for ilmu Rust projects
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+# ── Advisories ────────────────────────────────────────────────────────────
+# Checks crates against the RustSec advisory database.
+[advisories]
+# Local path where cargo-deny caches the advisory database.
+db-path = "~/.cargo/advisory-db"
+
+# Remote sources for the advisory database.
+db-urls = ["https://github.com/rustsec/advisory-db"]
+
+# Deny crates with vulnerabilities of medium severity or higher.
+# Severity levels: none < low < medium < high < critical
+vulnerability = "deny"
+
+# Warn on unmaintained crates rather than blocking the build — many useful
+# crates are stable and "done", so an unmaintained notice isn't always
+# actionable. Revisit per project if tighter controls are needed.
+unmaintained = "warn"
+
+# Warn about crates that have been yanked from crates.io.
+yanked = "warn"
+
+# Ignore specific advisories by ID if a false-positive or no fix exists:
+# ignore = ["RUSTSEC-0000-0000"]
+
+# ── Licenses ──────────────────────────────────────────────────────────────
+# Validates that every dependency uses an acceptable license.
+[licenses]
+# Treat any crate with no detectable license as an error.
+unlicensed = "deny"
+
+# Warn on copyleft licenses that are not explicitly allowed or denied below.
+# This catches LGPL and similar — worth a human review rather than a hard fail.
+copyleft = "warn"
+
+# Licenses that are unconditionally permitted for dependencies.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "MIT OR Apache-2.0",   # SPDX expression used by many Rust crates
+    "MPL-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",         # Used by unicode-ident and related crates
+    "Zlib",
+]
+
+# Licenses that are unconditionally prohibited.
+deny = [
+    "GPL-3.0",             # Strong copyleft — incompatible with proprietary code
+    "AGPL-3.0",            # Network-copyleft — even stricter than GPL
+]
+
+# Some crates use non-SPDX strings or dual licenses that need explicit
+# exceptions. Add them here as needed:
+# [[licenses.exceptions]]
+# name = "some-crate"
+# allow = ["LicenseRef-SomeLicense"]
+
+# ── Bans ──────────────────────────────────────────────────────────────────
+# Guards against duplicate crate versions and explicitly forbidden crates.
+[bans]
+# Warn (not deny) when multiple versions of the same crate are in the tree.
+# Denying is too aggressive for a shared template because transitive deps
+# often pull in version pairs during ecosystem transitions (e.g. syn 1 vs 2).
+# Tighten to "deny" in individual projects once the dep tree stabilises.
+multiple-versions = "warn"
+
+# Crates that must never appear in the dependency tree.
+# Add project-specific bans here, for example:
+#
+#   deny = [
+#     # Avoid the old, unmaintained OpenSSL binding in favour of rustls
+#     { name = "openssl" },
+#     # Pin a specific vulnerable version range
+#     { name = "some-crate", version = "<1.2.3" },
+#   ]
+deny = []
+
+# ── Sources ───────────────────────────────────────────────────────────────
+# Controls which registries and VCS sources are allowed.
+[sources]
+# Crates not published to an allowed registry are denied by default.
+unknown-registry = "deny"
+
+# Disallow arbitrary git sources — all deps must come from a known registry
+# (crates.io by default). Add explicit exceptions below for any git deps that
+# are genuinely required (e.g. a fork pending an upstream release).
+unknown-git = "deny"
+
+# Allow crates.io as the sole registry.
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+# Explicit git source allowlist. Add entries here when a git dep is needed:
+# allow-git = ["https://github.com/org/repo"]
