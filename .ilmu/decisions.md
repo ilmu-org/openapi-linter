@@ -13,7 +13,7 @@ Contradicting a decision requires filing an escalation issue on _ops before proc
 
 ## Context
 
-openapi-linter is a CLI tool targeting ~10K–20K LOC for v0.1.0. The project ships as a single binary. There is no library consumer outside the binary itself in this milestone. A workspace adds indirection (virtual manifest, cross-crate dependency resolution, publish sequencing) without delivering value at this scale.
+openapi-linter ships as a single binary. There is no library consumer outside the binary itself in this milestone. A workspace adds indirection (virtual manifest, cross-crate dependency resolution, publish sequencing) without delivering value at this scale.
 
 ## Decision
 
