@@ -1,4 +1,4 @@
-//! openapi-linter library — fast OpenAPI linter with Spectral OAS ruleset compatibility.
+//! refract library — fast OpenAPI linter with Spectral OAS ruleset compatibility.
 //!
 //! Business logic lives here; `src/main.rs` is the thin CLI entry point.
 

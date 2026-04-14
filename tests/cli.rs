@@ -2,7 +2,7 @@ use std::path::Path;
 use std::process::Command;
 
 fn bin() -> &'static str {
-    env!("CARGO_BIN_EXE_openapi-linter")
+    env!("CARGO_BIN_EXE_refract")
 }
 
 fn fixtures_dir() -> &'static Path {

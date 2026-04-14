@@ -231,7 +231,7 @@ fn write_sarif_batch(
         "runs": [{
             "tool": {
                 "driver": {
-                    "name": "openapi-linter",
+                    "name": "refract",
                     "rules": rules,
                 }
             },

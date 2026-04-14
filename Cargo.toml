@@ -1,8 +1,12 @@
 [package]
-name = "openapi-linter"
+name = "refract-cli"
 version = "0.2.0"
 edition = "2024"
 license = "MIT"
+
+[[bin]]
+name = "refract"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
