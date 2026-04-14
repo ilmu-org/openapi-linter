@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux musl — built with cross (supports both x86_64 and aarch64 cross-compilation)
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            use_cross: true
+            archive_ext: tar.gz
+
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-latest
+            use_cross: true
+            archive_ext: tar.gz
+
+          # macOS — native cargo, both Intel and Apple Silicon
+          - target: x86_64-apple-darwin
+            runner: macos-latest
+            use_cross: false
+            archive_ext: tar.gz
+
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+            use_cross: false
+            archive_ext: tar.gz
+
+          # Windows MSVC
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            use_cross: false
+            archive_ext: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      # Install cross for musl targets
+      - name: Install cross
+        if: matrix.use_cross == true
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      # Build — use cross for musl targets, native cargo for everything else
+      - name: Build (cross)
+        if: matrix.use_cross == true
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (cargo)
+        if: matrix.use_cross == false
+        run: cargo build --release --target ${{ matrix.target }}
+
+      # ── Archive (Unix) ──────────────────────────────────────────────────────
+      - name: Create archive (tar.gz)
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
+        run: |
+          BINARY="target/${{ matrix.target }}/release/openapi-linter"
+          ARCHIVE="openapi-linter-${{ matrix.target }}.tar.gz"
+          tar -czf "$ARCHIVE" -C "$(dirname "$BINARY")" "$(basename "$BINARY")"
+          echo "ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+
+      # ── Archive (Windows) ───────────────────────────────────────────────────
+      - name: Create archive (zip)
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          $binary = "target\${{ matrix.target }}\release\openapi-linter.exe"
+          $archive = "openapi-linter-${{ matrix.target }}.zip"
+          Compress-Archive -Path $binary -DestinationPath $archive
+          "ARCHIVE=$archive" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-linter-${{ matrix.target }}
+          path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      # Flatten the per-target subdirectories into a single directory
+      - name: Collect archives
+        shell: bash
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" \) \
+            -exec cp {} release-assets/ \;
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

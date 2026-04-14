@@ -16,11 +16,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Cheap checks first (format + lint) ────────────────────────────────────
-  check:
-    name: Fmt & Clippy
+  ci:
+    name: CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -29,79 +28,39 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      # Caches ~/.cargo/registry, ~/.cargo/git, and ./target
       - name: Cache cargo artifacts
         uses: Swatinem/rust-cache@v2
 
+      # 1. Format check
       - name: Check formatting
         run: cargo fmt --check
 
+      # 2. Lint
       - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings -W clippy::pedantic
 
-  # ── Tests (depends on check passing) ──────────────────────────────────────
-  test:
-    name: Tests
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
-
+      # 3. Tests
       - name: Run tests
         run: cargo test --all-features
 
-  # ── Security: known vulnerability audit ───────────────────────────────────
-  audit:
-    name: Security Audit
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      # rustsec/audit-check installs cargo-audit and runs it automatically.
-      # It annotates PRs with any advisories found.
-      - name: Run cargo-audit
-        uses: rustsec/audit-check@v2
+      # 4. Security audit — known vulnerability database (RustSec)
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo-audit
 
-  # ── License & dependency policy (cargo-deny) ──────────────────────────────
-  deny:
-    name: Cargo Deny
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
+      - name: Run cargo audit
+        run: cargo audit
 
-      # EmbarkStudios/cargo-deny-action installs cargo-deny at a pinned
-      # version and runs `cargo deny check` against deny.toml.
-      - name: Run cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@v2
+      # 5. License & dependency policy
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
 
-  # ── Documentation build ───────────────────────────────────────────────────
-  doc:
-    name: Docs
-    needs: check
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
+      - name: Run cargo deny
+        run: cargo deny check
 
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo artifacts
-        uses: Swatinem/rust-cache@v2
-
+      # 6. Documentation build
       - name: Build documentation
         run: cargo doc --no-deps
-        # RUSTDOCFLAGS is set globally above (-D warnings)
