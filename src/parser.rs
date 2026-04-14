@@ -7,19 +7,32 @@ use crate::error::LintError;
 /// Accepts `.yaml`, `.yml`, and `.json` files. For unknown extensions YAML is
 /// attempted first, then JSON.
 ///
+/// Parse errors include the file path and, for YAML files, the line/column
+/// from the parser so CI output is immediately actionable.
+///
 /// # Errors
 ///
 /// - [`LintError::Io`] — file cannot be read.
-/// - [`LintError::Yaml`] — YAML parse failure.
-/// - [`LintError::Json`] — JSON parse failure.
+/// - [`LintError::InvalidSpec`] — YAML or JSON parse failure (includes path + location).
 pub fn parse(path: &Path) -> Result<serde_json::Value, LintError> {
     let content = std::fs::read_to_string(path).map_err(LintError::Io)?;
 
-    match path.extension().and_then(|e| e.to_str()) {
+    let result = match path.extension().and_then(|e| e.to_str()) {
         Some("yaml" | "yml") => parse_yaml(&content),
-        Some("json") => parse_json(&content),
-        _ => parse_yaml(&content).or_else(|_| parse_json(&content)),
-    }
+        Some("json") => parse_json(&content, path),
+        _ => parse_yaml(&content).or_else(|_| parse_json(&content, path)),
+    };
+
+    result.map_err(|e| match e {
+        LintError::Yaml(yaml_err) => {
+            let location = yaml_err.location().map_or_else(
+                || path.display().to_string(),
+                |loc| format!("{}:{}:{}", path.display(), loc.line(), loc.column()),
+            );
+            LintError::InvalidSpec(format!("{location}: {yaml_err}"))
+        }
+        other => other,
+    })
 }
 
 fn parse_yaml(content: &str) -> Result<serde_json::Value, LintError> {
@@ -29,9 +42,9 @@ fn parse_yaml(content: &str) -> Result<serde_json::Value, LintError> {
     Ok(json_val)
 }
 
-fn parse_json(content: &str) -> Result<serde_json::Value, LintError> {
-    let val: serde_json::Value = serde_json::from_str(content)?;
-    Ok(val)
+fn parse_json(content: &str, path: &Path) -> Result<serde_json::Value, LintError> {
+    serde_json::from_str(content)
+        .map_err(|e| LintError::InvalidSpec(format!("{}: {e}", path.display())))
 }
 
 #[cfg(test)]
@@ -69,5 +82,27 @@ mod tests {
     fn missing_file_returns_io_error() {
         let result = parse(Path::new("/nonexistent/file.yaml"));
         assert!(matches!(result, Err(LintError::Io(_))));
+    }
+
+    #[test]
+    fn yaml_syntax_error_includes_path_in_message() {
+        let f = write_temp("key: :\n  bad", "yaml");
+        let err = parse(f.path()).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(f.path().to_str().unwrap()),
+            "error message should contain file path, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn json_syntax_error_includes_path_in_message() {
+        let f = write_temp("{bad json", "json");
+        let err = parse(f.path()).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains(f.path().to_str().unwrap()),
+            "error message should contain file path, got: {msg}"
+        );
     }
 }

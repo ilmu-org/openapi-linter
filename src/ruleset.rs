@@ -10,6 +10,9 @@ use crate::model::Severity;
 /// `None` means the rule is disabled (`off`); `Some(s)` overrides the severity.
 #[derive(Debug)]
 pub struct RulesetConfig {
+    /// Per-rule severity overrides keyed by rule ID.
+    ///
+    /// `None` means the rule is disabled (`off`); `Some(s)` overrides the default severity.
     pub severity_overrides: HashMap<String, Option<Severity>>,
 }
 

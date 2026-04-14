@@ -29,6 +29,8 @@ impl Rule for InfoDescription {
             message: self.message().to_string(),
             severity: self.default_severity(),
             path: "/info/description".to_string(),
+            line: None,
+            col: None,
         }]
     }
 }

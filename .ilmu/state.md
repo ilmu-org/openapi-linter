@@ -5,14 +5,15 @@ target_ecosystem: cross-platform (macOS, Linux, Windows)
 build_team: rust_build_team
 
 current_milestone: v0.2.0
-phase: planning-complete
-current_task: v0.2.0 scoping complete — ready for build
+phase: pr-open
+current_task: v0.2.0 PR open — awaiting review
 completed_tasks:
   - planning/rust-architect
   - planning/rust-critic
   - planning/sdd
   - plan-approved
   - v0.2.0-scoping
+  - v0.2.0-build
 
 open_questions: []
 
@@ -27,11 +28,11 @@ milestones:
       violation output (with source locations) that they replace Spectral without modifying
       existing .spectral.yaml files.
     scope: see .ilmu/plan.md ## v0.2.0
-    status: scoped
+    status: pr-open
   v1.0.0:
     hypothesis: public launch — promote when feature-complete and stable
     scope: TBD
     status: future
 
 last_updated: 2026-04-14
-last_agent: rust-teamlead (v0.2.0 scoped)
+last_agent: rust-teamlead (v0.2.0 impl)

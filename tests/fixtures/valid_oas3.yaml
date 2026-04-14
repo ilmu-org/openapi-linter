@@ -6,6 +6,9 @@ info:
   contact:
     name: Support Team
     email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 tags:
   - name: pets
     description: Everything about pets
@@ -30,6 +33,12 @@ paths:
         "201":
           description: Pet created.
   /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema:
+          type: string
     get:
       operationId: getPet
       summary: Get a pet

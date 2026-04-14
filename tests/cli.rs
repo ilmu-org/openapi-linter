@@ -57,6 +57,6 @@ fn json_format_produces_valid_json() {
     assert_eq!(output.status.code(), Some(0));
     let parsed: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("stdout should be valid JSON");
-    assert!(parsed["violations"].is_array());
+    assert!(parsed["files"].is_array());
     assert!(parsed["summary"].is_object());
 }

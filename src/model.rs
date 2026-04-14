@@ -1,3 +1,6 @@
+//! Data model types shared across the linter.
+
+/// Violation types — severity and the violation record itself.
 pub mod violation;
 
 pub use violation::{Severity, Violation};
@@ -7,8 +10,11 @@ use crate::error::LintError;
 /// The `OpenAPI` specification version detected in a document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OasVersion {
+    /// OpenAPI / Swagger 2.x.
     V2,
+    /// OpenAPI 3.0.x.
     V3_0,
+    /// OpenAPI 3.1.x.
     V3_1,
 }
 

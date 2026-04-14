@@ -27,6 +27,8 @@ impl Rule for OpenApiTags {
             message: self.message().to_string(),
             severity: self.default_severity(),
             path: "/tags".to_string(),
+            line: None,
+            col: None,
         }]
     }
 }

@@ -27,6 +27,8 @@ impl Rule for InfoContact {
             message: self.message().to_string(),
             severity: self.default_severity(),
             path: "/info".to_string(),
+            line: None,
+            col: None,
         }]
     }
 }

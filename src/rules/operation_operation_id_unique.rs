@@ -47,6 +47,8 @@ impl Rule for OperationOperationIdUnique {
                         message: format!("operationId '{op_id}' is already used at {first_path}."),
                         severity: self.default_severity(),
                         path: current_path,
+                        line: None,
+                        col: None,
                     });
                 } else {
                     seen.insert(op_id.to_string(), current_path);

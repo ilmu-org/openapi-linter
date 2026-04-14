@@ -38,6 +38,8 @@ impl Rule for OperationOperationId {
                         message: self.message().to_string(),
                         severity: self.default_severity(),
                         path: format!("/paths/{path_key}/{method}"),
+                        line: None,
+                        col: None,
                     });
                 }
             }
