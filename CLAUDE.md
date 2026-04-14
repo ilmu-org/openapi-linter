@@ -1,4 +1,4 @@
-# openapi-linter — Project Standards
+# refract — Project Standards
 
 Extends org-level standards in `../_ops/CLAUDE.md`. Read that file first.
 

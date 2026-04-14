@@ -176,7 +176,7 @@ out_of_scope:
     shape should be deferred until a caller exists. Milestone: v0.2.0."
   - "Method-vs-loose-function API shaping across all modules (parser::parse, ruleset::load,
     lib::lint, etc.). Reason: premature without a real consumer — natural shape will emerge
-    when openapi-linter-core is extracted. One exception: ruleset::load could become
+    when refract-core is extracted. One exception: ruleset::load could become
     RulesetConfig::load() (cosmetic, symmetric with RulesetConfig::empty()). Milestone: v0.2.0."
 
 ---
@@ -288,9 +288,9 @@ scope:
 
   # --- Distribution (medium CI impact: install friction reduction) ---
   - "Add brew tap distribution. Create a homebrew tap repo (ilmu-org/homebrew-tap or
-    ilmu-org/homebrew-openapi-linter). Add a Formula file that downloads the macOS
+    ilmu-org/homebrew-refract). Add a Formula file that downloads the macOS
     universal binary from GitHub Releases and verifies SHA256. Document install in README:
-    brew tap ilmu-org/tap && brew install openapi-linter. No binary changes required.
+    brew tap ilmu-org/tap && brew install refract. No binary changes required.
     (From v0.1.0 out_of_scope. Only if traction signal from v0.1.0 release confirms demand.)"
 
   # --- Tests ---
@@ -334,7 +334,7 @@ out_of_scope:
     cycles gracefully. High complexity; violates single-file scope. Milestone: v0.3.0."
   - "Watch mode and LSP server mode. Editor integration is post-validation scope.
     Milestone: v0.3.0. (Carried from v0.1.0.)"
-  - "openapi-linter-core workspace crate extraction. No external library consumer exists yet.
+  - "refract-core workspace crate extraction. No external library consumer exists yet.
     Natural shape will emerge when one does. Milestone: v0.3.0 or later."
   - "cargo install distribution. GitHub Releases binary download is sufficient for v0.2.0
     CI use case. cargo install requires publishing to crates.io; premature without a

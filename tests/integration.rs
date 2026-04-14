@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use openapi_linter::lint;
+use refract_cli::lint;
 
 fn fixtures_dir() -> &'static Path {
     Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures"))

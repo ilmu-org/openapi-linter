@@ -754,3 +754,36 @@ The rename is a single mechanical commit, landed first on the v0.2.0 branch befo
 - No user-visible change. No API change. No binary-size change.
 - First-commit discipline: the rename should not be bundled with feature work. A failing test after feature work commits must not be chased through a rename diff.
 
+
+---
+
+# ADR-017: Project Rename — openapi-linter → refract
+
+**Date**: 2026-04-14
+**Status**: Accepted
+
+## Context
+
+The project shipped v0.1.0 and v0.2.0 under the name `openapi-linter`. The name is descriptive but generic, indistinguishable from dozens of other linters, and does not convey brand identity. The crate has never been published to crates.io, so the rename window is still clean with no downstream breakage.
+
+`refract` was chosen because it evokes the physical act of bending a spectrum — a deliberate nod to Spectral, the Node.js tool this project replaces — and it reads cleanly as a CLI: `refract lint api.yaml`. The name is short, memorable, and domain-appropriate.
+
+## Decision
+
+Rename the project from `openapi-linter` to `refract` at the pre-v0.3.0 stage while reference debt is small (two shipped releases, no crates.io publication).
+
+The `refract` name on crates.io is held by a 0.0.0 placeholder whose description explicitly invites contact ("If you want this package name please contact me."). To avoid blocking the rename, the **crate name** on crates.io is `refract-cli`; the **binary name** users invoke remains `refract`. An explicit `[[bin]]` section in `Cargo.toml` decouples the two. The owner can be contacted in parallel; if the name transfers before first publish we can change the crate name to plain `refract`.
+
+## Migration path for existing users
+
+- GitHub auto-redirects `ilmu-org/openapi-linter` to `ilmu-org/refract` after the repo rename.
+- Local git remotes must be updated manually: `git remote set-url origin git@github.com:ilmu-org/refract.git`
+- CI configs referencing the old binary name (`openapi-linter`) must update to `refract`. The binary name change is a breaking change; v0.2.0 is pre-1.0 so semver permits it.
+- The `refract-cli` crate name on crates.io is the first-time publish name — no existing downstream depends on it.
+
+## Consequences
+
+- Brand identity established before public launch.
+- Binary name changes: `openapi-linter` → `refract`. Breaking for existing CI pipelines, acceptable at pre-1.0.
+- Crate name `refract-cli` differs from binary name `refract`. Minor friction for Rust library consumers; users installing via `cargo install refract-cli` get the `refract` binary as expected.
+- README carries a "Renamed from openapi-linter" breadcrumb until v1.0.0.

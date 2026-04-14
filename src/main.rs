@@ -6,7 +6,7 @@ use std::io::IsTerminal as _;
 
 use clap::Parser;
 
-use openapi_linter::reporter::{ColorMode, Format};
+use refract_cli::reporter::{ColorMode, Format};
 
 #[derive(clap::ValueEnum, Clone)]
 enum OutputFormat {
@@ -17,7 +17,7 @@ enum OutputFormat {
 
 #[derive(Parser)]
 #[command(
-    name = "openapi-linter",
+    name = "refract",
     about = "Fast OpenAPI linter — Spectral OAS compatible"
 )]
 struct Cli {
@@ -73,7 +73,7 @@ fn main() {
 }
 
 fn run_file(cli: &Cli, format: Format, color_mode: ColorMode) {
-    match openapi_linter::lint(&cli.spec, cli.ruleset.as_deref()) {
+    match refract_cli::lint(&cli.spec, cli.ruleset.as_deref()) {
         Ok(violations) => {
             if cli.quiet {
                 std::process::exit(i32::from(!violations.is_empty()));
@@ -83,7 +83,7 @@ fn run_file(cli: &Cli, format: Format, color_mode: ColorMode) {
             let has_violations = files.iter().any(|(_, vs)| !vs.is_empty());
 
             let mut out = std::io::stdout().lock();
-            if let Err(e) = openapi_linter::reporter::report(&files, format, color_mode, &mut out) {
+            if let Err(e) = refract_cli::reporter::report(&files, format, color_mode, &mut out) {
                 eprintln!("error writing output: {e}");
                 std::process::exit(2);
             }
@@ -98,7 +98,7 @@ fn run_file(cli: &Cli, format: Format, color_mode: ColorMode) {
 }
 
 fn run_dir(cli: &Cli, format: Format, color_mode: ColorMode) {
-    let scan_results = match openapi_linter::lint_dir(&cli.spec, cli.ruleset.as_deref()) {
+    let scan_results = match refract_cli::lint_dir(&cli.spec, cli.ruleset.as_deref()) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("error scanning directory: {e:#}");
@@ -112,7 +112,7 @@ fn run_dir(cli: &Cli, format: Format, color_mode: ColorMode) {
     }
 
     // Separate successes from per-file errors.
-    let mut files: Vec<(std::path::PathBuf, Vec<openapi_linter::model::Violation>)> = Vec::new();
+    let mut files: Vec<(std::path::PathBuf, Vec<refract_cli::model::Violation>)> = Vec::new();
     let mut parse_errors: usize = 0;
 
     for (path, result) in scan_results {
@@ -130,7 +130,7 @@ fn run_dir(cli: &Cli, format: Format, color_mode: ColorMode) {
 
     if !cli.quiet {
         let mut out = std::io::stdout().lock();
-        if let Err(e) = openapi_linter::reporter::report(&files, format, color_mode, &mut out) {
+        if let Err(e) = refract_cli::reporter::report(&files, format, color_mode, &mut out) {
             eprintln!("error writing output: {e}");
             std::process::exit(2);
         }

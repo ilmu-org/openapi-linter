@@ -1,5 +1,5 @@
 ---
-project: openapi-linter
+project: refract
 project_type: cli-tool
 target_ecosystem: cross-platform (macOS, Linux, Windows)
 build_team: rust_build_team
@@ -15,6 +15,7 @@ completed_tasks:
   - v0.2.0-scoping
   - v0.2.0-build
   - v0.2.0-release
+  - rename/refract-pr-opened
 
 open_questions: []
 
@@ -36,4 +37,4 @@ milestones:
     status: future
 
 last_updated: 2026-04-14
-last_agent: teamlead (v0.2.0 release)
+last_agent: rename pipeline (refract rename PR)
