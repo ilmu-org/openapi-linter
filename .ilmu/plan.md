@@ -165,3 +165,16 @@ out_of_scope:
     Milestone: v0.3.0."
   - "Async runtime. Reason: workload is single-file synchronous; no benefit. Milestone: v0.2.0
     if multi-file linting is added."
+  - "mod.rs → named module style (src/rules.rs + src/rules/ subfolder, etc.). Reason: pure
+    rename refactor; wrong time relative to open PR. Do as first commit on v0.2.0 branch.
+    Milestone: v0.2.0."
+  - "#![warn(missing_docs)] + doc comments on Rule trait methods (id, message, default_severity,
+    check). Reason: touches every rule file; scope creep for v0.1.0 PR. Milestone: v0.2.0."
+  - "Collapse reporter::write_text + reporter::write_json into a single report() function with
+    a Format enum (Text/Json). Eliminates the bool use_color anti-pattern and the implicit
+    format coupling between two parallel functions. Reason: no external consumer yet — API
+    shape should be deferred until a caller exists. Milestone: v0.2.0."
+  - "Method-vs-loose-function API shaping across all modules (parser::parse, ruleset::load,
+    lib::lint, etc.). Reason: premature without a real consumer — natural shape will emerge
+    when openapi-linter-core is extracted. One exception: ruleset::load could become
+    RulesetConfig::load() (cosmetic, symmetric with RulesetConfig::empty()). Milestone: v0.2.0."
