@@ -43,7 +43,10 @@ pub type DirLintResult = Vec<(PathBuf, Result<Vec<Violation>, LintError>)>;
 pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violation>, LintError> {
     // Pass 1: parse to serde_json::Value.
     let doc = parser::parse(spec_path)?;
-    let version = model::OasVersion::detect(&doc)?;
+    let version = model::OasVersion::detect(&doc);
+    if version == model::OasVersion::Unknown {
+        eprintln!("warning: OpenAPI version not recognized, version-gated rules skipped");
+    }
 
     // Pass 2: build position index (YAML only; JSON files get an empty index).
     let pos_index = match spec_path.extension().and_then(|e| e.to_str()) {
