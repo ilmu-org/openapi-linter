@@ -38,7 +38,7 @@ migration work — download the binary, run it.
 
 - Validates OpenAPI 2.x, 3.0, and 3.1 specs (YAML and JSON)
 - Reads existing `.spectral.yaml` / `.spectral.yml` — no config migration
-- 15 built-in rules covering info, operations, tags, and security
+- 32 built-in rules covering info, paths, operations, parameters, enums, servers, and tags
 - Text, JSON, and SARIF output formats
 - Non-zero exit code on violations — works natively in CI
 - Single static binary — no Node.js, no Docker, no package manager
@@ -133,23 +133,48 @@ refract --format sarif ./api/
 
 | Rule ID | Description | Default Severity |
 |---|---|---|
+| `array-items` | Schema with `type: array` must declare an `items` property | error |
 | `contact-properties` | `info.contact` fields should include `name`, `url`, or `email` | warn |
+| `duplicated-entry-in-enum` | `enum` arrays must not contain duplicate values | error |
 | `info-contact` | `info.contact` must be present | warn |
 | `info-description` | `info.description` must be non-empty | warn |
 | `info-license` | `info.license` must be present | warn |
 | `license-url` | `info.license` must include a `url` | warn |
+| `no-$ref-siblings` | `$ref` objects must not have sibling keys (OAS 2.x/3.0; skipped for OAS 3.1) | error |
 | `no-eval-in-markdown` | Descriptions and summaries must not contain `eval(` | error |
 | `no-script-tags-in-markdown` | Descriptions and summaries must not contain `<script>` | error |
+| `oas3-api-servers` | OAS 3.x document must define a non-empty `servers` array | warn |
+| `oas3-parameter-description` | Every parameter must have a non-empty `description` (OAS 3.x only) | warn |
+| `oas3-server-not-example.com` | Server URLs must not point to `example.com` (OAS 3.x only) | warn |
+| `oas3-server-trailing-slash` | Server URLs must not end with a trailing slash (OAS 3.x only) | warn |
 | `openapi-tags` | Top-level `tags` array must be present and non-empty | warn |
 | `openapi-tags-alphabetical` | Top-level `tags` must be in alphabetical order | warn |
+| `openapi-tags-uniqueness` | Top-level `tags` array must not contain duplicate tag names | error |
 | `operation-description` | Each operation should have a non-empty `description` | info |
 | `operation-operationId` | Each operation must have a non-empty `operationId` | error |
 | `operation-operationId-unique` | `operationId` values must be unique across all operations | error |
+| `operation-operationId-valid-in-url` | `operationId` must contain only URL-safe characters | warn |
+| `operation-parameters` | Operation must not define duplicate parameters with the same name and location | warn |
+| `operation-success-response` | Each operation must define at least one 2xx response | warn |
 | `operation-summary` | Each operation must have a non-empty `summary` | warn |
+| `operation-tag-defined` | Tags referenced in operations must be declared in the top-level `tags` array | warn |
 | `operation-tags` | Each operation must have a non-empty `tags` array | warn |
+| `path-declarations-must-exist` | Path template parameters (`{param}`) must not be empty placeholders | error |
+| `path-keys-no-trailing-slash` | Path keys must not end with a trailing slash (root `/` is exempt) | warn |
+| `path-not-include-query` | Path keys must not include query string parameters | error |
 | `path-params` | Path parameters defined in the URL must have a matching `parameters` entry | error |
+| `tag-description` | Each top-level tag must have a non-empty `description` | warn |
+| `typed-enum` | Each value in an `enum` array must be compatible with the declared schema `type` | warn |
 
 All rules are enabled by default. Severity can be overridden per rule via a `.spectral.yaml` file.
+
+### Known gaps
+
+- **Cross-file `$ref`:** External `$ref` values (URLs, relative file paths) are treated as opaque
+  and skipped to avoid false positives. Full cross-file resolution is planned for v0.4.0.
+- **JSON Schema keyword validation:** Structural rules such as `minLength`, `pattern`, and
+  `required` field checks are not yet validated. JSON Schema evaluation via the `boon` crate is
+  planned for v0.4.0.
 
 ## Spectral compatibility
 
