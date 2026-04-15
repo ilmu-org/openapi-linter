@@ -5,8 +5,16 @@ info:
 paths: {}
 components:
   schemas:
-    Status:
+    FloatIntegers:
       type: integer
       enum:
         - 1.0
         - 2.0
+    LargeExponent:
+      type: integer
+      enum:
+        - 1e30
+    NegativeZero:
+      type: integer
+      enum:
+        - -0.0

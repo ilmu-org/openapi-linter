@@ -232,4 +232,13 @@ mod tests {
         let doc = json!({ "openapi": "3.0.3" });
         assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
     }
+
+    #[test]
+    fn coercion_fixture_produces_no_violations() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/typed-enum/coercion.yaml");
+        let content = std::fs::read_to_string(&path).unwrap();
+        let doc: serde_json::Value = serde_yaml::from_str(&content).unwrap();
+        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+    }
 }
