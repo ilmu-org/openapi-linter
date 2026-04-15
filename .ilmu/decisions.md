@@ -787,3 +787,339 @@ The `refract` name on crates.io is held by a 0.0.0 placeholder whose description
 - Binary name changes: `openapi-linter` → `refract`. Breaking for existing CI pipelines, acceptable at pre-1.0.
 - Crate name `refract-cli` differs from binary name `refract`. Minor friction for Rust library consumers; users installing via `cargo install refract-cli` get the `refract` binary as expected.
 - README carries a "Renamed from openapi-linter" breadcrumb until v1.0.0.
+
+---
+
+<!-- v0.3.0 scope summary
+In scope (17 rules): operation-success-response, array-items, no-$ref-siblings, oas3-api-servers, path-keys-no-trailing-slash, path-not-include-query, path-declarations-must-exist, operation-tag-defined, openapi-tags-uniqueness, tag-description, duplicated-entry-in-enum, typed-enum, oas3-server-trailing-slash, oas3-server-not-example.com, oas3-parameter-description, operation-operationId-valid-in-url, operation-parameters.
+Deferred to v0.4.0: oas3-schema, oas2-schema, oas3-valid-schema-example, oas2-valid-schema-example (full JSON Schema validation), cross-file $ref resolution.
+Architectural additions: OAS-version gating helper, deref-before-compare invariant for all cross-reference rules.
+-->
+
+# ADR-018: v0.3.0 Rule Set, 17 Structural and Correctness Rules
+
+**Date**: 2026-04-14
+**Status**: Accepted
+
+## Context
+
+v0.2.0 shipped 15 rules covering operation metadata, info block, tags, path parameters, and markdown safety. The remaining Spectral OAS gap is split between two classes of rule:
+
+1. Structural and correctness rules that need only `serde_json::Value` traversal plus the existing internal `$ref` deref utility from ADR-015. Examples: `array-items` requires `type: array` to declare `items`; `no-$ref-siblings` enforces an OAS spec invariant; tag and parameter sanity checks fall here.
+2. Schema-evaluation rules (`oas3-schema`, `oas2-schema`, `oas3-valid-schema-example`, `oas2-valid-schema-example`) that require a JSON Schema evaluator capable of running the bundled OAS JSON Schema (or fragments of it) against an input document.
+
+Class 1 rules are mechanically similar to v0.2.0 work: visit nodes, evaluate predicate, emit violation. Class 2 rules introduce a new dependency, a new failure mode (schema evaluation errors vs lint violations), and significant binary growth (see ADR-019).
+
+A single milestone covering both classes would be a 30-plus rule release with a dependency-introduction risk in the same window. Splitting the milestones isolates the dependency decision and keeps v0.3.0 reviewable.
+
+## Decision
+
+v0.3.0 ships exactly the 17 class-1 rules listed below. No schema-evaluation rules. No cross-file `$ref` resolution (see ADR-020).
+
+| Rule | Severity | Scope notes |
+|------|----------|-------------|
+| operation-success-response | warn | Every operation has at least one 2xx or 3xx response. Default response counts as a non-success fallback, not a success. |
+| array-items | error | Any schema with `type: array` must declare `items`. Apply after deref. Skip schemas behind unresolvable external `$ref`. |
+| no-$ref-siblings | error | An object containing `$ref` must contain no other keys. OAS 3.1 relaxes this for some keywords; v0.3.0 enforces the strict rule (matches Spectral default). |
+| oas3-api-servers | warn | OAS 3.x only. Top-level `servers` array is present and non-empty. |
+| path-keys-no-trailing-slash | warn | Path keys do not end in `/` except the root key `/`. |
+| path-not-include-query | warn | Path keys do not contain `?`. |
+| path-declarations-must-exist | warn | No empty `{}` placeholders in path templates. |
+| operation-tag-defined | warn | Every tag string used on an operation appears in the global `tags` array. |
+| openapi-tags-uniqueness | error | Global tag `name` values are unique. |
+| tag-description | warn | Every global tag has a non-empty `description`. |
+| duplicated-entry-in-enum | warn | `enum` arrays contain no duplicate values (deep equality). |
+| typed-enum | warn | Each `enum` value matches the declared schema `type`. See ADR-021 for type-coercion semantics. |
+| oas3-server-trailing-slash | warn | OAS 3.x only. Server `url` does not end with `/`. |
+| oas3-server-not-example.com | warn | OAS 3.x only. Server `url` host is not `example.com`. |
+| oas3-parameter-description | warn | OAS 3.x only. Every parameter (after deref) has a non-empty `description`. |
+| operation-operationId-valid-in-url | warn | `operationId` matches `^[A-Za-z0-9-._~:/?#[\]@!$&'()*+,;=]+$` (RFC 3986 unreserved + sub-delims plus path-safe set). |
+| operation-parameters | warn | Within a single operation, no two parameters share the same `(name, in)` pair after deref. Path-level + operation-level parameters are merged before comparison. |
+
+Of these, 5 rules (oas3-api-servers, oas3-server-trailing-slash, oas3-server-not-example.com, oas3-parameter-description, no-$ref-siblings on certain OAS 3.1 keywords) are version-gated. ADR-021 covers the gating helper.
+
+Of these, 4 rules consume `$ref` deref (array-items, oas3-parameter-description, operation-parameters, operation-tag-defined when tags are referenced indirectly). ADR-021 codifies the deref-before-compare invariant.
+
+## Consequences
+
+- v0.3.0 ships 32 total built-in rules (15 from v0.2.0 plus 17 here). Strong Spectral-replacement story for structural correctness.
+- No new direct dependency required. Binary size stays approximately flat.
+- The four schema-evaluation rules and cross-file `$ref` are the next milestone's frontier (ADR-019, ADR-020). Users needing those today must run a Spectral fallback step for now; document this in README.
+- Rule registration follows the v0.2.0 module-per-rule pattern. Rule count growth is linear with file count, no compile-time impact.
+- 17 rules is at the upper edge of a reviewable milestone. Implementation order should pull the structural-only rules first (path-keys-no-trailing-slash, path-not-include-query, path-declarations-must-exist, openapi-tags-uniqueness, tag-description, oas3-server-trailing-slash, oas3-server-not-example.com, no-$ref-siblings, oas3-api-servers) before the deref-dependent ones (array-items, oas3-parameter-description, operation-parameters, operation-tag-defined) and the type-aware ones (typed-enum, duplicated-entry-in-enum). Sequencing details belong in plan.md.
+
+---
+
+# ADR-019: JSON Schema Validation Rules Deferred to v0.4.0
+
+**Date**: 2026-04-14
+**Status**: Accepted
+
+## Context
+
+Four Spectral rules require a JSON Schema evaluator:
+
+- `oas3-schema`, `oas2-schema`: validate the entire OAS document against the official OAS JSON Schema (a 2000-plus-line schema document for OAS 3.0, plus separate variants for 3.1 and 2.0).
+- `oas3-valid-schema-example`, `oas2-valid-schema-example`: validate every `example` value against its declaring schema.
+
+These rules deliver substantial value: they catch entire classes of bug (a field declared `format: int32` with example `"abc"`; a request body schema missing a required keyword) that the structural rules cannot. They also introduce architectural cost.
+
+**Library options assessed:**
+
+1. **boon** (current latest 0.6.x, MIT, pure Rust). Implements JSON Schema drafts 4, 6, 7, 2019-09, 2020-12. Pure Rust, no native dependencies, musl-clean. Adds approximately 250 KB to the stripped release binary plus the schema documents themselves (the OAS 3.0 schema is approximately 60 KB JSON, OAS 3.1 approximately 80 KB, OAS 2.0 approximately 90 KB). Binary grows by approximately 0.5 MB total. Maintained, stable API.
+2. **jsonschema** (most popular crate). Pulls `fancy-regex` and `regex` for `pattern` keyword support, plus `url` for `format: uri`. Dependency surface roughly 3x boon. Has had musl build issues historically. Larger binary impact.
+3. **valico** (legacy). Drafts 4 only, no 2020-12. Out.
+4. Hand-roll. Implementing JSON Schema 2020-12 evaluation is a multi-month project. Out.
+
+**Architectural friction beyond binary size:**
+
+- Schema evaluation produces nested error trees (a single `oas3-schema` failure on a malformed document yields dozens of leaf errors). Mapping these to flat `Violation`s with sensible `path` and `message` fields requires a dedicated translator. Spectral's translator is non-trivial; refract would need its own.
+- The OAS JSON Schema must be bundled as a compile-time asset. Choosing how (a `static` byte string per OAS version, lazy-parsed; or an `include_bytes!` plus `Lazy<Value>`; or a build-script-generated module) is a real design choice with binary-size implications.
+- `oas3-valid-schema-example` and `oas2-valid-schema-example` apply schema evaluation to user-defined sub-schemas, not the OAS schema. The evaluator must accept arbitrary schemas at runtime, which boon supports but the integration shape (one `boon::Schemas` registry per `lint()` call vs per rule invocation) is a non-trivial decision.
+- Error-vs-violation distinction: a malformed schema in the input document that boon refuses to compile is neither a clean lint pass nor a structural violation. The reporter contract must define this state.
+
+Doing all four rules and resolving the four design questions in v0.3.0 doubles the milestone size and concentrates risk: if the schema-evaluation integration slips, it blocks the 17 structural rules that are otherwise ready.
+
+## Decision
+
+Defer all four schema-evaluation rules to v0.4.0. Defer the boon (or alternative) dependency choice to that milestone. v0.4.0's first ADR will be the evaluator selection and integration shape.
+
+v0.3.0 ships no JSON Schema dependency. The v0.3.0 README and CHANGELOG must call out that `oas3-schema` and `*-valid-schema-example` are not yet implemented; users needing them today should chain a Spectral pre-check or wait for v0.4.0.
+
+## Consequences
+
+- v0.3.0 binary size stays approximately flat versus v0.2.0.
+- v0.3.0 ships in a reviewable window. Schema-evaluation work is isolated to v0.4.0 where it can have full architect attention.
+- Users who depend on full document validation today have a clear gap to plan around. Docs must be honest about this.
+- The boon assessment recorded above is the starting point for v0.4.0's first ADR. If a better library appears in the interim (or the OASIS-blessed JSON Schema 2020-12 reference Rust impl matures), v0.4.0 reassesses.
+- Once schema validation lands, refract crosses a capability threshold where it can replace Spectral for the majority of Stoplight-style use cases. v0.4.0 is therefore the milestone that earns a 1.0.0 candidate label.
+
+---
+
+# ADR-020: Cross-File $ref Resolution Deferred to v0.4.0
+
+**Date**: 2026-04-14
+**Status**: Accepted
+
+## Context
+
+ADR-015 shipped document-internal `$ref` resolution (refs of the form `#/components/...`). Cross-file `$ref` (refs of the form `./shared/parameters.yaml#/PetId` or `../common.json`) remained out of scope for v0.2.0 and is reconsidered now.
+
+**What cross-file resolution would require:**
+
+- A resolver that, given a base file path and a `$ref` string, loads the target file (parsing YAML or JSON), caches it, and returns a `serde_json::Value` plus the parsed JSON Pointer fragment.
+- Cycle detection across file boundaries (file A refs file B refs file A).
+- Path semantics: relative path resolution against the current file, handling `..`, symlinks, Windows path separators, and case-sensitivity differences across filesystems.
+- A loader cache shared across the lint run (multiple rules and multiple operations may deref to the same external file).
+- Failure modes: missing file, malformed file, pointer-not-found, cycle exceeded. Each maps to either a lint violation (when the rule's invariant is broken) or a `LintError` (when the document graph itself is broken).
+- HTTP `$ref` (`https://example.com/shared.yaml#/...`) is not in scope at any milestone for refract (no network in a CI linter). Resolver must reject these explicitly.
+
+**Impact on v0.3.0 rules:**
+
+Of the 17 v0.3.0 rules, 4 consume `$ref` deref. With internal-only deref:
+
+- `array-items` on a schema behind an external `$ref` is treated as opaque, no violation, no false positive. Acceptable: most arrays-without-items mistakes are in inline schemas.
+- `oas3-parameter-description` on a parameter behind an external `$ref` is skipped. Acceptable: the parameter component file itself can be linted directly when scanned.
+- `operation-parameters` (uniqueness of (name, in)) compares deref'd parameters. External-ref'd parameters compare by their `$ref` string, which means two operations referencing the same external parameter are correctly seen as identical, but two different external refs that happen to resolve to the same name+in would not be caught. Acceptable: rare in practice.
+- `operation-tag-defined` compares string tag values directly, no deref needed.
+
+The degradation is bounded: rules produce no false positives on external-ref'd nodes, only false negatives. The lint signal stays trustworthy.
+
+**Why defer:**
+
+The user population most affected by external `$ref` is teams with bundled spec workflows (Redocly, Stoplight Studio, swagger-cli bundle). Those teams typically lint the bundled output, where every ref is internal. Teams that lint un-bundled multi-file specs are a minority. Shipping cross-file resolution is a multi-week effort for a minority use case in v0.3.0; it competes for the same architect and developer attention as the 17 new rules.
+
+Pairing cross-file `$ref` with schema validation (v0.4.0) is also natural: `oas3-schema` cannot validate a document containing unresolved external refs without first resolving them.
+
+## Decision
+
+Defer cross-file `$ref` resolution to v0.4.0. The internal-only `deref` utility from ADR-015 remains the contract for v0.3.0 rules.
+
+External `$ref` handling stays permissive in v0.3.0: when `deref` encounters a non-internal `$ref` (any string not starting with `#/` or equal to `#`), it returns the original `{"$ref": "..."}` object unchanged, and the calling rule treats it as opaque (no violation, no inspection of fields it would expect post-deref).
+
+The v0.3.0 README must document this behaviour explicitly: "Cross-file `$ref` is not resolved in v0.3.0. Bundle multi-file specs with `redocly bundle` (or equivalent) before linting for full coverage." A v0.4.0 milestone link should accompany.
+
+## Consequences
+
+- No new resolver, loader cache, or filesystem-traversal code in v0.3.0. Risk surface stays small.
+- Bundled-spec workflows (the majority) are fully covered.
+- Multi-file workflows hit a documented limitation, not a silent failure or false positive.
+- v0.4.0 owns the resolver design alongside schema validation. Both depend on a "fully resolved document" abstraction; building both in the same milestone lets the abstraction emerge from real use, not speculation.
+- The deref contract (return-unchanged on external) is now a two-version-stable invariant. Rules written in v0.3.0 will not need to change when v0.4.0 lands cross-file resolution: deref will simply succeed on more inputs.
+
+---
+
+# ADR-021: OAS-Version Gating Helper and Deref-Before-Compare Invariant
+
+**Date**: 2026-04-14
+**Status**: Accepted
+
+## Context
+
+v0.3.0 introduces two cross-cutting structural concerns that span multiple rules and need to be settled once rather than per rule.
+
+**Concern 1: OAS-version gating.** Five v0.3.0 rules apply only to OAS 3.x specs (oas3-api-servers, oas3-server-trailing-slash, oas3-server-not-example.com, oas3-parameter-description, plus the strict form of no-$ref-siblings). Existing v0.2.0 rules already navigate the 2.x vs 3.x shape difference internally per rule, which has worked but creates duplicated detection logic. Adding 5 more 3.x-only rules without a shared helper would compound the duplication.
+
+**Concern 2: Deref-before-compare.** Four v0.3.0 rules (array-items, oas3-parameter-description, operation-parameters, operation-tag-defined) cross-reference nodes that may be `$ref` objects. The correctness invariant is: every comparison or field access on a potentially-ref'd node must call `deref` first. Forgetting to deref produces false positives. This is the single most likely correctness bug class in v0.3.0.
+
+**Concern 3 (related): typed-enum coercion semantics.** `typed-enum` checks that each enum value matches the declared `type`. JSON has six primitive types (string, number, integer, boolean, null, array, object). Strict comparison rejects `enum: [1, 2, 3]` under `type: integer` because `serde_json::Value::Number` is not split on integer-vs-float. The rule needs documented coercion semantics or it ships broken.
+
+## Decision
+
+**Version gating helper.** Add a small helper to `src/rules/util.rs`:
+
+```rust
+pub(crate) enum OasVersion {
+    V2,
+    V3_0,
+    V3_1,
+    Unknown,
+}
+
+pub(crate) fn detect_oas_version(doc: &serde_json::Value) -> OasVersion;
+```
+
+Detection logic: if `doc.swagger == "2.0"`, return `V2`. If `doc.openapi` starts with `"3.0"`, return `V3_0`. If `doc.openapi` starts with `"3.1"`, return `V3_1`. Otherwise `Unknown`.
+
+OAS 3.x-only rules guard their `check()` body with `matches!(detect_oas_version(doc), OasVersion::V3_0 | OasVersion::V3_1)` and return early on mismatch. Existing v0.2.0 rules that internally distinguish 2.x vs 3.x are not refactored in v0.3.0 (separate cleanup PR if appetite exists).
+
+The Rule trait stays unchanged. Version gating is a per-rule guard, not a registration-time filter, because some rules apply to both versions with version-specific branches inside.
+
+**Deref-before-compare invariant.** Codify in `src/rules/util.rs` as a doc-comment contract on `deref`:
+
+> Any rule that cross-references a node which may legally be a `$ref` object MUST call `deref` before reading non-`$ref` fields or comparing the node against another. Skipping `deref` produces false positives on every well-structured spec.
+
+Each of the four affected rules carries an inline comment identifying it as deref-dependent and links to ADR-021. Reviewer checklist (in PR template) gains a line: "Does this rule access fields on a node that could be a `$ref`? If yes, is `deref` called first?"
+
+No type-system enforcement is added in v0.3.0. A `Deref'd<'a>(&'a Value)` newtype was considered but rejected: it forces a wrapper through the entire rule body for marginal safety, complicates the existing rule signatures, and the invariant is enforceable by review for 4 rules. Revisit if v0.4.0 (with cross-file `$ref` and schema evaluation) brings the deref-dependent rule count above 8.
+
+**typed-enum coercion semantics.** `typed-enum` treats `type: integer` and `type: number` as compatible with any `serde_json::Value::Number`, with one extra check for `type: integer`: the number must satisfy `n.is_i64() || n.is_u64() || (n.as_f64().map_or(false, |f| f.fract() == 0.0))`. Rationale: YAML and JSON both round-trip integers as numbers, and rejecting `1.0` under `type: integer` would surprise users. This matches Spectral's lenient behaviour and avoids JSON-vs-YAML representation gotchas.
+
+`type: string` matches `Value::String`. `type: boolean` matches `Value::Bool`. `type: null` matches `Value::Null`. `type: array` matches `Value::Array`. `type: object` matches `Value::Object`. Multi-type (`type: ["string", "null"]`, OAS 3.1) passes if any listed type matches.
+
+## Consequences
+
+- 5 version-gated rules share one detection path. Future OAS 3.2 (when ratified) extends `OasVersion` and rules opt in by pattern match.
+- Deref-before-compare contract is documented in code, in ADR, and in PR template. No type-system cost. Re-evaluated if rule count grows.
+- typed-enum lands with documented coercion semantics, no surprise rejection of integer-shaped floats. Test fixtures cover `[1, 2, 3]` and `[1.0, 2.0]` under `type: integer`, plus mixed-type and OAS 3.1 multi-type cases.
+- `src/rules/util.rs` grows from one (`deref`, `resolve_internal_ref`) to two concerns (add `detect_oas_version`, `OasVersion`). Still single-file. If util.rs exceeds approximately 300 lines, split in v0.4.0 along concern boundaries.
+
+---
+
+<!-- Critic Review, v0.3.0 Scope
+Author: rust-critic
+Date: 2026-04-14
+Subject: ADR-018 through ADR-021, rule scope and cross-cutting invariants
+Verdict: Approve with required addresses on CRITICAL issues before plan.md finalization.
+-->
+
+# Critic Review, v0.3.0 Scope
+
+## Critical Issues (must block scope finalization)
+
+### C1. `no-$ref-siblings` scope under OAS 3.1 is ambiguous and likely wrong
+ADR-018 row: "OAS 3.1 relaxes this for some keywords; v0.3.0 enforces the strict rule (matches Spectral default)." ADR-021 repeats "the strict form of no-$ref-siblings" as a version-gated concern.
+
+Two problems:
+1. Spectral's upstream `no-$ref-siblings` is `formats: [oas2, oas3_0]`, i.e. it is not applied to OAS 3.1 at all. Claiming "matches Spectral default" while enforcing strict on 3.1 contradicts Spectral.
+2. OAS 3.1 uses JSON Schema 2020-12, which explicitly permits `$ref` alongside other keywords inside Schema Objects. Even Reference Objects in OAS 3.1 allow `summary` and `description` siblings. A strict rule applied to a 3.1 schema tree produces false positives on virtually every real 3.1 spec.
+
+Ambiguity: the ADR does not say where the rule traverses. Does it run on every object containing `$ref`? Only Path Item references? Only Reference Objects outside schemas? Until that surface is defined, plan.md cannot write a fixture matrix.
+
+Required action: decide explicitly (a) whether the rule is skipped on OAS 3.1 outright (Spectral parity), and (b) which object positions it scans on 2.x and 3.0. The answer belongs in ADR-018 or a revision, not plan.md.
+
+### C2. ADR-code drift: `deref(doc, value)` function does not exist as described
+ADR-021 places a doc-comment contract on `deref`. ADR-015 describes `deref(doc, value) -> &Value` as the primary API. The actual code in `src/rules/util.rs` ships `resolve_ref(doc, pointer, depth) -> Option<&Value>`, no `deref` wrapper, different signature, different return type (Option vs bare reference).
+
+Consequences:
+- Developer implementing v0.3.0 rules cannot locate the function the ADR points to.
+- "Inline comments on affected rules linking ADR-021" has nothing to link against since the call-site API is different.
+- The "return the original $ref object unchanged" contract from ADR-020 does not match `resolve_ref` which returns `None` on external refs.
+
+Required action: pick one. Either (a) ADR-021 clarifies the invariant applies to `resolve_ref` and documents the Option-based contract, or (b) v0.3.0 adds a thin `deref` wrapper matching the ADR text. Plan.md must know which before phase 2.
+
+## Significant Issues (architect or SDD must address)
+
+### S1. Unsupported rule IDs in user `.spectral.yaml`, behavior undefined
+v0.3.0 claims Spectral-compatible rulesets but does not implement `oas3-schema`, `oas2-schema`, `oas3-valid-schema-example`, `oas2-valid-schema-example`. Most real `.spectral.yaml` files extend `spectral:oas`, which pulls these rules in by default.
+
+Behavior when the user's ruleset references a rule refract does not know:
+- Hard error: every existing Spectral user gets a broken lint until they edit their ruleset. Unacceptable migration friction.
+- Silent drop: user believes full Spectral coverage ran, gets false confidence.
+- Warn-and-continue: probably correct. But this is a UX decision that belongs in an ADR, not left to discovery during implementation.
+
+Required action: pick a behavior. Document in ADR (revise ADR-019 or add a new one). Affects README migration notes too.
+
+### S2. `path-declarations-must-exist` detection is unspecified
+ADR-018: "No empty `{}` placeholders in path templates." The user-facing question is exactly the detection logic: how does the rule tell `{}` from `{petId}`? Edge cases:
+- `/pets/{ }` (whitespace only): empty or not?
+- `/pets/{petId{inner}}` (malformed, unclosed nested): regex choice matters.
+- `/pets/{petId` (unclosed): rule behavior unspecified.
+- Path keys containing literal `{`/`}` outside template positions.
+
+Architect may argue this is plan.md territory. Counter: if the rule is defined as "scan for `\{\s*\}`" versus "tokenize path template and inspect each segment," the two approaches disagree on the edge cases above. That is a scoping decision, not a plan detail.
+
+Required action: pick regex or tokenizer and record the decision (can be a short note in ADR-018, not a new ADR).
+
+### S3. Deref-before-compare enforced by PR template alone is fragile
+Architect acknowledges the type-safety tradeoff and defers a `Deref'd<'a>` newtype. Defensible at 4 rules. Two concerns:
+- PR template checklists are ignored when PRs are AI-drafted (common on this project). The "reviewer catches it" assumption assumes human reviewer in the loop.
+- v0.4.0 brings schema validation and cross-file $ref, both deref-heavy. The 8-rule re-evaluation trigger is reached suddenly, not gradually.
+
+Cheaper mitigation than a newtype: add a single unit test in `rules/util.rs` that loads a fixture with an internal `$ref` and asserts each deref-tagged rule produces the expected violation count. If a developer forgets deref, the count diverges, test fails. Zero runtime cost, faster feedback than PR review.
+
+Not blocking v0.3.0 scope, but worth capturing in the ADR as the escalation path before the newtype.
+
+### S4. `typed-enum` coercion fixtures incomplete for stated semantics
+`n.is_i64() || n.is_u64() || n.as_f64().map_or(false, |f| f.fract() == 0.0)` covers the common case but has surface area:
+- `1e30`: `fract() == 0.0` is true, but value is not i64-representable. Passes. Defensible (matches Spectral) but worth an explicit fixture so behavior is frozen.
+- `-0.0`: `fract() == 0.0` is true. Treated as integer. Fine, worth a fixture.
+- `f64::NAN`: `NaN.fract() == NaN`, comparison with 0.0 yields false, rejected. Fine.
+- `f64::INFINITY`: `INFINITY.fract() == NaN`. Rejected. Fine.
+
+Plan.md should add these four fixtures to the typed-enum matrix explicitly, not rely on `[1, 2, 3]` and `[1.0, 2.0]` alone.
+
+### S5. `OasVersion::Unknown` silently disables version-gated rules
+`detect_oas_version` returns `Unknown` for anything that isn't exactly `"2.0"`, `"3.0.*"`, `"3.1.*"`. When OAS 3.2 or a pre-release variant (`"3.1.0-rc1"`) appears, all 5 version-gated rules skip silently. User lints a new-version spec, sees clean output, assumes coverage.
+
+Required action: decide whether `Unknown` should log a diagnostic (one-time per lint run) so users know gating fired. Cheap to add, prevents the silent-coverage-gap failure mode. Can be a note in ADR-021.
+
+### S6. `operation-parameters` dedup semantics across internal + external $ref mix
+Architect addresses this partially in ADR-020: external refs compare as opaque, "two different external refs that happen to resolve to the same name+in would not be caught." OK. Two cases still unspec'd:
+- An array mixing `[{$ref: '#/components/parameters/X'}, {name: 'x', in: 'query'}]` where `X` resolves to the inline object. Deref makes both yield `{name: 'x', in: 'query'}`, dedup fires correctly. Confirm in fixture.
+- Path-level + operation-level param merge: ADR-018 says "merged before comparison." OAS rule is operation-level overrides path-level with matching `(name, in)`. Does refract's merge emit the overridden path-level copy (leading to a false-positive duplicate) or drop it?
+
+Required action: state the merge semantics in ADR-018 (one line) so plan.md knows what to fixture.
+
+## Minor Issues
+
+### M1. `operation-operationId-valid-in-url` regex is permissive to the point of triviality
+The char class `[A-Za-z0-9-._~:/?#[\]@!$&'()*+,;=]+` permits `?`, `#`, `/`, `[`, `]`. In practice the rule fires only on whitespace and non-ASCII. This matches Spectral verbatim, so compat is preserved, but users will be surprised that `opId/with/slashes?and=query#frag` passes. Worth a one-line doc note: "matches Spectral's permissive default; catches whitespace and non-URL-safe characters only."
+
+### M2. `detect_oas_version` ambiguity when both `swagger` and `openapi` fields present
+Malformed doc with both fields: first-match wins (checks `swagger == "2.0"` first). Real-world rare but worth one line in ADR-021 so the behavior is frozen.
+
+### M3. 17-rule milestone size
+Architect acknowledges and sequences. One extra guardrail for plan.md: each of the 4 phases should be a separate PR, not a single mega-PR. Single-commit phases are fine within a PR, but collapsing all 17 rules into one review is the failure mode the architect flagged.
+
+## Strengths
+
+- **Class-split rationale is clean.** Separating structural rules from schema-evaluation rules puts the boon dependency decision in its own milestone. Reviewable chunks, one risk at a time.
+- **Boon assessment is evidence-based.** Three candidates evaluated, rejection reasons explicit, binary cost quantified, architectural friction beyond binary size called out. This is exactly the depth a deferral decision needs.
+- **Bounded-degradation argument on external $ref is rigorous.** "No false positives, only false negatives" is the right framing. Lint signal stays trustworthy, which is more important than coverage breadth for a linter.
+- **Deref-before-compare escalation plan is named.** Architect resisted the newtype at 4 rules but committed to re-evaluate at 8. The trigger is concrete, not hand-waved.
+- **typed-enum coercion rationale is documented with why.** YAML round-trip explanation is the right level of detail; prevents relitigation.
+- **4-phase sequencing derisks the 17-rule count.** Structural first, then util.rs additions, then deref-dependent, then type-aware. If a phase stalls, earlier phases still ship value.
+- **Version gating via `matches!` pattern is idiomatic and cheap.** No Rule-trait surgery, no registration-time filter, extends naturally to OAS 3.2.
+
+## Questions for Architect
+
+1. **C1 resolution:** does `no-$ref-siblings` run on OAS 3.1 at all? If yes, on which object positions? If no, ADR-018 row should say "2.x and 3.0 only" and drop from ADR-021's version-gated list (it would be format-gated, not version-gated).
+2. **C2 resolution:** does v0.3.0 add a `deref(doc, value) -> &Value` wrapper over `resolve_ref`, or does ADR-021 rewrite to target `resolve_ref(doc, pointer, depth) -> Option<&Value>` directly? Plan.md phase 2 depends on the answer.
+3. **S1 resolution:** on unknown rule IDs in user ruleset, does refract error, warn, or silently drop? Affects `.spectral.yaml` loading code path which is not in this ADR cycle.
+4. **S2 resolution:** regex or tokenizer for `path-declarations-must-exist`? One-line note in ADR-018 suffices.
+5. **S6 resolution:** path-level + operation-level parameter merge, which copy wins and which is kept for dedup comparison?
+6. **Rule trait dispatch:** is `check()` called once per document or once per node? Affects the cost model of `detect_oas_version` when called inside every gated rule.
+
+<!-- End Critic Review -->
+

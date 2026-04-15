@@ -4,9 +4,9 @@ project_type: cli-tool
 target_ecosystem: cross-platform (macOS, Linux, Windows)
 build_team: rust_build_team
 
-current_milestone: v1.0.0
+current_milestone: v0.3.0
 phase: planning
-current_task: rename complete — ready to scope v0.3.0
+current_task: v0.3.0 scoping complete -- awaiting build
 completed_tasks:
   - planning/rust-architect
   - planning/rust-critic
@@ -16,6 +16,7 @@ completed_tasks:
   - v0.2.0-build
   - v0.2.0-release
   - rename/refract-pr-opened
+  - v0.3.0-scoping
 
 open_questions: []
 
@@ -31,10 +32,17 @@ milestones:
       existing .spectral.yaml files.
     scope: see .ilmu/plan.md ## v0.2.0
     status: complete
+  v0.3.0:
+    hypothesis: >
+      Adding 17 structural and correctness rules closes the Spectral OAS compatibility
+      gap enough that teams adopting refract get equivalent lint coverage on path hygiene,
+      tag validation, parameter dedup, and enum integrity without needing Spectral.
+    scope: see .ilmu/plan.md ## v0.3.0
+    status: planning
   v1.0.0:
-    hypothesis: public launch — promote when feature-complete and stable
+    hypothesis: public launch -- promote when feature-complete and stable
     scope: TBD
     status: future
 
 last_updated: 2026-04-14
-last_agent: rename pipeline (post-merge cleanup)
+last_agent: v0.3.0 scoping pipeline (architect + critic + sdd)
