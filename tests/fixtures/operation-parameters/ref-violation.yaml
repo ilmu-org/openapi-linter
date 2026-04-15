@@ -1,0 +1,18 @@
+openapi: "3.0.3"
+info:
+  title: Test
+  version: "1.0"
+components:
+  parameters:
+    TypeFilter:
+      name: type
+      in: query
+paths:
+  /pets:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/TypeFilter"
+        - $ref: "#/components/parameters/TypeFilter"
+      responses:
+        "200":
+          description: OK

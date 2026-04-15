@@ -1,0 +1,18 @@
+openapi: "3.0.3"
+info:
+  title: Test
+  version: "1.0"
+components:
+  parameters:
+    PetId:
+      name: petId
+      in: path
+      required: true
+paths:
+  /pets/{petId}:
+    get:
+      parameters:
+        - $ref: "#/components/parameters/PetId"
+      responses:
+        "200":
+          description: OK

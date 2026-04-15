@@ -9,6 +9,9 @@ info:
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.petstore.example/v1
+    description: Production server
 tags:
   - name: pets
     description: Everything about pets
@@ -37,6 +40,7 @@ paths:
       - name: petId
         in: path
         required: true
+        description: The unique identifier of the pet.
         schema:
           type: string
     get:

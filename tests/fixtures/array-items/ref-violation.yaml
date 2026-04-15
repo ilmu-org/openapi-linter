@@ -1,0 +1,11 @@
+openapi: "3.0.3"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    BadArray:
+      type: array
+    Alias:
+      $ref: "#/components/schemas/BadArray"
