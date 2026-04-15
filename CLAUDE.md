@@ -24,6 +24,25 @@ Read `.ilmu/plan.md` before any build task.
 - Target: non-Rust CI pipelines (Go, Python, Java) — binary UX matters
 - Single static binary: no runtime deps, no install friction
 - v0.1.0 scope cut by rust-critic — do not expand
+## Commit messages
+
+Plain conventional commits only: `type: what changed`.
+No phase labels (`phase 1`, `phase N`), no step labels, no issue/PR references.
+No em-dashes.
+
+## Build branching
+
+Integration branch: `build/vX.X.X` off `main`.
+Phase branches: `phase{N}/vX.X.X`.
+- Phase 1 branches from `build/vX.X.X`
+- Phase N (N > 1) branches from `phase{N-1}/vX.X.X`
+
+Each phase opens PR targeting `build/vX.X.X`. Do not wait for human PR approval between phases. Branch next phase from current phase branch immediately after opening its PR.
+
+Merge PRs into `build/vX.X.X` in phase order. Document the upstream branch dependency in each PR description.
+
+Final PR: `build/vX.X.X -> main`. Open after all phase PRs merged and integration check passes. Leave for human review, do not merge.
+
 ## Writing .ilmu files and prompts
 
 Any agent writing or updating files in `.ilmu/` (state, plan, decisions, ADRs) or creating a prompt file must run the output through the caveman compress skill before writing it to disk:

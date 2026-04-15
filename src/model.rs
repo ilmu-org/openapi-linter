@@ -5,8 +5,6 @@ pub mod violation;
 
 pub use violation::{Severity, Violation};
 
-use crate::error::LintError;
-
 /// The `OpenAPI` specification version detected in a document.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OasVersion {
@@ -16,33 +14,33 @@ pub enum OasVersion {
     V3_0,
     /// OpenAPI 3.1.x.
     V3_1,
+    /// OpenAPI version could not be determined from the document.
+    Unknown,
 }
 
 impl OasVersion {
     /// Detect the `OpenAPI` version from a parsed document.
     ///
-    /// # Errors
-    ///
-    /// Returns [`LintError::InvalidSpec`] if the version cannot be determined.
-    pub fn detect(doc: &serde_json::Value) -> Result<OasVersion, LintError> {
+    /// Returns [`OasVersion::Unknown`] when the version string is absent or unrecognized.
+    /// Callers should emit a diagnostic when `Unknown` is returned.
+    #[must_use]
+    pub fn detect(doc: &serde_json::Value) -> OasVersion {
         if let Some(swagger) = doc["swagger"].as_str()
             && swagger.starts_with('2')
         {
-            return Ok(OasVersion::V2);
+            return OasVersion::V2;
         }
 
         if let Some(openapi) = doc["openapi"].as_str() {
             if openapi.starts_with("3.0") {
-                return Ok(OasVersion::V3_0);
+                return OasVersion::V3_0;
             }
             if openapi.starts_with("3.1") {
-                return Ok(OasVersion::V3_1);
+                return OasVersion::V3_1;
             }
         }
 
-        Err(LintError::InvalidSpec(
-            "cannot determine OpenAPI version".into(),
-        ))
+        OasVersion::Unknown
     }
 }
 
@@ -54,24 +52,24 @@ mod tests {
     #[test]
     fn detect_swagger_2() {
         let doc = json!({ "swagger": "2.0" });
-        assert_eq!(OasVersion::detect(&doc).unwrap(), OasVersion::V2);
+        assert_eq!(OasVersion::detect(&doc), OasVersion::V2);
     }
 
     #[test]
     fn detect_openapi_3_0() {
         let doc = json!({ "openapi": "3.0.3" });
-        assert_eq!(OasVersion::detect(&doc).unwrap(), OasVersion::V3_0);
+        assert_eq!(OasVersion::detect(&doc), OasVersion::V3_0);
     }
 
     #[test]
     fn detect_openapi_3_1() {
         let doc = json!({ "openapi": "3.1.0" });
-        assert_eq!(OasVersion::detect(&doc).unwrap(), OasVersion::V3_1);
+        assert_eq!(OasVersion::detect(&doc), OasVersion::V3_1);
     }
 
     #[test]
-    fn detect_unknown_returns_error() {
+    fn detect_unknown_returns_unknown() {
         let doc = json!({ "foo": "bar" });
-        assert!(OasVersion::detect(&doc).is_err());
+        assert_eq!(OasVersion::detect(&doc), OasVersion::Unknown);
     }
 }

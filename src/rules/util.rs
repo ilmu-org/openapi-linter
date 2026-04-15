@@ -13,6 +13,11 @@ const MAX_REF_DEPTH: u8 = 16;
 ///
 /// Returns `None` on: external ref, unresolvable pointer, or cycle depth
 /// exceeding [`MAX_REF_DEPTH`].
+///
+/// Deref-before-compare contract (ADR-021): callers must invoke `resolve_ref`
+/// before comparing schema or parameter fields. If `None` is returned (external
+/// `$ref` or depth limit exceeded), treat the node as opaque and skip to avoid
+/// false positives.
 #[must_use]
 pub(crate) fn resolve_ref<'a>(doc: &'a Value, pointer: &str, depth: u8) -> Option<&'a Value> {
     if depth >= MAX_REF_DEPTH {

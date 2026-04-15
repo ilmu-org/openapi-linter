@@ -1,0 +1,20 @@
+openapi: "3.0.3"
+info:
+  title: Test
+  version: "1.0"
+paths: {}
+components:
+  schemas:
+    FloatIntegers:
+      type: integer
+      enum:
+        - 1.0
+        - 2.0
+    LargeExponent:
+      type: integer
+      enum:
+        - 1e30
+    NegativeZero:
+      type: integer
+      enum:
+        - -0.0

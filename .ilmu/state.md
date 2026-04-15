@@ -5,8 +5,8 @@ target_ecosystem: cross-platform (macOS, Linux, Windows)
 build_team: rust_build_team
 
 current_milestone: v0.3.0
-phase: planning
-current_task: v0.3.0 scoping complete -- awaiting build
+phase: build
+current_task: v0.3.0 PR open -- awaiting review
 completed_tasks:
   - planning/rust-architect
   - planning/rust-critic
@@ -34,15 +34,15 @@ milestones:
     status: complete
   v0.3.0:
     hypothesis: >
-      17 structural/correctness rules close Spectral OAS gap enough that teams
-      get equivalent lint coverage on path hygiene, tag validation, param dedup,
-      enum integrity -- no Spectral needed.
+      17 structural/correctness rules close Spectral OAS gap -- teams get
+      equivalent lint coverage on path hygiene, tag validation, param dedup,
+      enum integrity. No Spectral needed.
     scope: see .ilmu/plan.md ## v0.3.0
-    status: planning
+    status: build
   v1.0.0:
-    hypothesis: public launch -- promote when feature-complete and stable
+    hypothesis: public launch -- promote when feature-complete + stable
     scope: TBD
     status: future
 
-last_updated: 2026-04-14
-last_agent: v0.3.0 scoping pipeline (architect + critic + sdd)
+last_updated: 2026-04-15
+last_agent: dev-rust-teamlead (v0.3.0 impl)

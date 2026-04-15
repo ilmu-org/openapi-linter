@@ -1,18 +1,35 @@
+mod array_items;
 mod contact_properties;
+mod duplicated_entry_in_enum;
 mod info_contact;
 mod info_description;
 mod info_license;
 mod license_url;
 mod no_eval_in_markdown;
+mod no_ref_siblings;
 mod no_script_tags_in_markdown;
+mod oas3_api_servers;
+mod oas3_parameter_description;
+mod oas3_server_not_example_com;
+mod oas3_server_trailing_slash;
 mod open_api_tags;
 mod openapi_tags_alphabetical;
+mod openapi_tags_uniqueness;
 mod operation_description;
 mod operation_operation_id;
 mod operation_operation_id_unique;
+mod operation_operation_id_valid_in_url;
+mod operation_parameters;
+mod operation_success_response;
 mod operation_summary;
+mod operation_tag_defined;
 mod operation_tags;
+mod path_declarations_must_exist;
+mod path_keys_no_trailing_slash;
+mod path_not_include_query;
 mod path_params;
+mod tag_description;
+mod typed_enum;
 pub(crate) mod util;
 
 use crate::model::{OasVersion, Severity, Violation};
@@ -58,5 +75,25 @@ pub fn default_registry() -> Vec<Box<dyn Rule>> {
         // Security / markdown
         Box::new(no_eval_in_markdown::NoEvalInMarkdown),
         Box::new(no_script_tags_in_markdown::NoScriptTagsInMarkdown),
+        // v0.3.0 Phase 1: structural rules
+        Box::new(path_keys_no_trailing_slash::PathKeysNoTrailingSlash),
+        Box::new(path_not_include_query::PathNotIncludeQuery),
+        Box::new(path_declarations_must_exist::PathDeclarationsMustExist),
+        Box::new(openapi_tags_uniqueness::OpenApiTagsUniqueness),
+        Box::new(tag_description::TagDescription),
+        Box::new(oas3_server_trailing_slash::Oas3ServerTrailingSlash),
+        Box::new(oas3_server_not_example_com::Oas3ServerNotExampleCom),
+        Box::new(no_ref_siblings::NoRefSiblings),
+        Box::new(oas3_api_servers::Oas3ApiServers),
+        Box::new(operation_success_response::OperationSuccessResponse),
+        Box::new(operation_operation_id_valid_in_url::OperationOperationIdValidInUrl),
+        // v0.3.0 Phase 3: deref-dependent rules
+        Box::new(array_items::ArrayItems),
+        Box::new(oas3_parameter_description::Oas3ParameterDescription),
+        Box::new(operation_parameters::OperationParameters),
+        Box::new(operation_tag_defined::OperationTagDefined),
+        // v0.3.0 Phase 4: type-aware rules
+        Box::new(duplicated_entry_in_enum::DuplicatedEntryInEnum),
+        Box::new(typed_enum::TypedEnum),
     ]
 }

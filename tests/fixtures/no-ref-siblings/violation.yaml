@@ -1,0 +1,10 @@
+openapi: "3.0.3"
+info:
+  title: Test
+  version: "1.0.0"
+components:
+  schemas:
+    Pet:
+      $ref: "#/components/schemas/Animal"
+      description: "A pet with a sibling field"
+paths: {}
