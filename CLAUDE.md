@@ -30,6 +30,14 @@ Plain conventional commits only: `type: what changed`.
 No phase labels (`phase 1`, `phase N`), no step labels, no issue/PR references.
 No em-dashes.
 
+## Scoping prompt pre-flight
+
+Before any scoping work, the agent must:
+1. Archive the current milestone's plan section to `.ilmu/archive/plan-vX.X.X.md`.
+2. Remove that section from `.ilmu/plan.md`, leaving only the archive pointer header.
+3. Compress the archive file with caveman compress. Delete the `.original.md` backup.
+4. Create and check out the `plan/vX.X.X` branch.
+
 ## Build branching
 
 Integration branch: `build/vX.X.X` off `main`.
