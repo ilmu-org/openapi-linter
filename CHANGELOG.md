@@ -2,7 +2,7 @@
 
 All notable changes to refract are documented here.
 
-## [Unreleased] - v0.4.0
+## [0.4.0] - 2026-04-16
 
 ### Added
 

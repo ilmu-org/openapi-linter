@@ -49,15 +49,15 @@ migration work — download the binary, run it.
 
 ```sh
 # Linux x86_64
-curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-x86_64-unknown-linux-musl.tar.gz \
+curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-x86_64-unknown-linux-musl.tar.gz \
   | tar -xz -C /usr/local/bin
 
 # macOS Apple Silicon
-curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-aarch64-apple-darwin.tar.gz \
+curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-aarch64-apple-darwin.tar.gz \
   | tar -xz -C /usr/local/bin
 
 # macOS Intel
-curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-x86_64-apple-darwin.tar.gz \
+curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-x86_64-apple-darwin.tar.gz \
   | tar -xz -C /usr/local/bin
 ```
 
@@ -65,11 +65,11 @@ curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/re
 
 | Platform | Download |
 |---|---|
-| Linux x86\_64 (musl) | [refract-x86\_64-unknown-linux-musl.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-x86_64-unknown-linux-musl.tar.gz) |
-| Linux aarch64 (musl) | [refract-aarch64-unknown-linux-musl.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-aarch64-unknown-linux-musl.tar.gz) |
-| macOS Apple Silicon | [refract-aarch64-apple-darwin.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-aarch64-apple-darwin.tar.gz) |
-| macOS Intel | [refract-x86\_64-apple-darwin.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-x86_64-apple-darwin.tar.gz) |
-| Windows x86\_64 | [refract-x86\_64-pc-windows-msvc.zip](https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-x86_64-pc-windows-msvc.zip) |
+| Linux x86\_64 (musl) | [refract-x86\_64-unknown-linux-musl.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-x86_64-unknown-linux-musl.tar.gz) |
+| Linux aarch64 (musl) | [refract-aarch64-unknown-linux-musl.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-aarch64-unknown-linux-musl.tar.gz) |
+| macOS Apple Silicon | [refract-aarch64-apple-darwin.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-aarch64-apple-darwin.tar.gz) |
+| macOS Intel | [refract-x86\_64-apple-darwin.tar.gz](https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-x86_64-apple-darwin.tar.gz) |
+| Windows x86\_64 | [refract-x86\_64-pc-windows-msvc.zip](https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-x86_64-pc-windows-msvc.zip) |
 
 ### From source
 
@@ -212,7 +212,7 @@ Valid severity values: `error`, `warn`, `info`, `off`.
 ```yaml
 - name: Install refract
   run: |
-    curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.3.0/refract-x86_64-unknown-linux-musl.tar.gz \
+    curl -sSL https://github.com/ilmu-org/openapi-linter/releases/download/v0.4.0/refract-x86_64-unknown-linux-musl.tar.gz \
       | tar -xz -C /usr/local/bin
 
 - name: Lint OpenAPI spec
