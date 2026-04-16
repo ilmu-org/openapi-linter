@@ -1,3 +1,4 @@
+use crate::lint::LintContext;
 use crate::model::{OasVersion, Severity, Violation};
 use crate::rules::Rule;
 
@@ -19,7 +20,9 @@ impl Rule for Oas3ServerNotExampleCom {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
+        let version = ctx.version;
         if !matches!(version, OasVersion::V3_0 | OasVersion::V3_1) {
             return vec![];
         }
@@ -85,7 +88,12 @@ mod tests {
             "openapi": "3.0.3",
             "servers": [{ "url": "https://example.com/v1" }]
         });
-        let v = Oas3ServerNotExampleCom.check(&doc, OasVersion::V3_0);
+        let v = Oas3ServerNotExampleCom.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "oas3-server-not-example.com");
     }
@@ -98,7 +106,12 @@ mod tests {
         });
         assert!(
             Oas3ServerNotExampleCom
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -111,7 +124,12 @@ mod tests {
         });
         assert!(
             Oas3ServerNotExampleCom
-                .check(&doc, OasVersion::V2)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V2,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

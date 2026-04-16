@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// The top-level `tags` array must be sorted alphabetically by `name`.
@@ -17,7 +18,8 @@ impl Rule for OpenApiTagsAlphabetical {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let Some(tags) = doc["tags"].as_array() else {
             return vec![];
         };
@@ -62,7 +64,12 @@ mod tests {
         let doc = parse_yaml("tags:\n  - name: alpha\n  - name: beta\n  - name: gamma\n");
         assert!(
             OpenApiTagsAlphabetical
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -72,7 +79,12 @@ mod tests {
         let doc = parse_yaml("tags:\n  - name: zebra\n  - name: alpha\n");
         assert!(
             !OpenApiTagsAlphabetical
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -82,7 +94,12 @@ mod tests {
         let doc = parse_yaml("tags:\n  - name: only\n");
         assert!(
             OpenApiTagsAlphabetical
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -92,7 +109,12 @@ mod tests {
         let doc = parse_yaml("openapi: \"3.0.3\"\n");
         assert!(
             OpenApiTagsAlphabetical
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

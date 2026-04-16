@@ -1,3 +1,4 @@
+use crate::lint::LintContext;
 use crate::model::{OasVersion, Severity, Violation};
 use crate::rules::Rule;
 
@@ -19,7 +20,9 @@ impl Rule for Oas3ApiServers {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
+        let version = ctx.version;
         if !matches!(version, OasVersion::V3_0 | OasVersion::V3_1) {
             return vec![];
         }
@@ -52,7 +55,12 @@ mod tests {
             "info": { "title": "Test", "version": "1.0.0" },
             "paths": {}
         });
-        let v = Oas3ApiServers.check(&doc, OasVersion::V3_0);
+        let v = Oas3ApiServers.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "oas3-api-servers");
     }
@@ -63,7 +71,12 @@ mod tests {
             "openapi": "3.0.3",
             "servers": []
         });
-        let v = Oas3ApiServers.check(&doc, OasVersion::V3_0);
+        let v = Oas3ApiServers.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 
@@ -73,12 +86,30 @@ mod tests {
             "openapi": "3.0.3",
             "servers": [{ "url": "https://api.example.com" }]
         });
-        assert!(Oas3ApiServers.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            Oas3ApiServers
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
     fn skipped_for_oas2() {
         let doc = json!({ "swagger": "2.0" });
-        assert!(Oas3ApiServers.check(&doc, OasVersion::V2).is_empty());
+        assert!(
+            Oas3ApiServers
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V2,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

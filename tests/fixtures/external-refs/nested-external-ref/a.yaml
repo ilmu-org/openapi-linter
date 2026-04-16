@@ -1,0 +1,2 @@
+Foo:
+  $ref: "./b.yaml#/Bar"

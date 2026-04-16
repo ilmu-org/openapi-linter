@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+use crate::lint::LintContext;
 use crate::model::{OasVersion, Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule};
 
@@ -24,7 +25,9 @@ impl Rule for NoRefSiblings {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
+        let version = ctx.version;
         // OAS 3.1 adopts JSON Schema 2020-12 which permits $ref siblings.
         // Unknown version: skip to avoid false positives on unrecognized spec formats.
         if matches!(version, OasVersion::V3_1 | OasVersion::Unknown) {
@@ -174,7 +177,12 @@ mod tests {
                 }
             }
         });
-        let v = NoRefSiblings.check(&doc, OasVersion::V3_0);
+        let v = NoRefSiblings.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "no-$ref-siblings");
     }
@@ -189,7 +197,16 @@ mod tests {
                 }
             }
         });
-        assert!(NoRefSiblings.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            NoRefSiblings
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -205,7 +222,16 @@ mod tests {
                 }
             }
         });
-        assert!(NoRefSiblings.check(&doc, OasVersion::V3_1).is_empty());
+        assert!(
+            NoRefSiblings
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_1,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -225,7 +251,12 @@ mod tests {
                 }
             }
         });
-        let v = NoRefSiblings.check(&doc, OasVersion::V3_0);
+        let v = NoRefSiblings.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 }

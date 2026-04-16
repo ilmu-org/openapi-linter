@@ -165,16 +165,20 @@ refract --format sarif ./api/
 | `path-params` | Path parameters defined in the URL must have a matching `parameters` entry | error |
 | `tag-description` | Each top-level tag must have a non-empty `description` | warn |
 | `typed-enum` | Each value in an `enum` array must be compatible with the declared schema `type` | warn |
+| `oas3-schema` | OAS 3.x document must conform to the bundled OAS JSON Schema (3.0 or 3.1) | error |
+| `oas2-schema` | OAS 2.0 document must conform to the bundled Swagger JSON Schema | error |
+| `oas3-valid-schema-example` | Schema `example`/`examples` values must validate against their enclosing schema (OAS 3.x) | error |
+| `oas2-valid-schema-example` | Schema `example` values must validate against their enclosing schema (OAS 2.0) | error |
 
 All rules are enabled by default. Severity can be overridden per rule via a `.spectral.yaml` file.
 
 ### Known gaps
 
-- **Cross-file `$ref`:** External `$ref` values (URLs, relative file paths) are treated as opaque
-  and skipped to avoid false positives. Full cross-file resolution is planned for v0.4.0.
-- **JSON Schema keyword validation:** Structural rules such as `minLength`, `pattern`, and
-  `required` field checks are not yet validated. JSON Schema evaluation via the `boon` crate is
-  planned for v0.4.0.
+- **OAS 3.1 `$ref` siblings:** The `no-$ref-siblings` rule fires for OAS 3.1 documents even though
+  OAS 3.1 formally permits sibling keywords alongside `$ref`. Disable the rule in your ruleset
+  config if you rely on this OAS 3.1 feature.
+- **HTTP `$ref`:** External refs pointing to HTTP/HTTPS URLs are not fetched. They emit a warning
+  violation and are treated as opaque for rule evaluation.
 
 ## Spectral compatibility
 

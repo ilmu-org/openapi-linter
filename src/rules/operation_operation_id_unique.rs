@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule};
 
 /// All `operationId` values across the spec must be unique.
@@ -19,7 +20,8 @@ impl Rule for OperationOperationIdUnique {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         // Collect all (operationId, path) pairs first, then detect duplicates.
         let mut seen: HashMap<String, String> = HashMap::new();
         let mut violations = Vec::new();
@@ -89,7 +91,12 @@ paths:
           description: OK
 "#,
         );
-        let violations = OperationOperationIdUnique.check(&doc, OasVersion::V3_0);
+        let violations = OperationOperationIdUnique.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!violations.is_empty());
         assert_eq!(violations[0].rule_id, "operation-operationId-unique");
     }
@@ -114,7 +121,12 @@ paths:
           description: OK
 "#,
         );
-        let violations = OperationOperationIdUnique.check(&doc, OasVersion::V3_0);
+        let violations = OperationOperationIdUnique.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(violations.is_empty());
     }
 }

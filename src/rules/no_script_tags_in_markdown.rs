@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{Rule, util};
 
 /// No `<script` tag must appear in any markdown `description` or `summary` field.
@@ -17,7 +18,8 @@ impl Rule for NoScriptTagsInMarkdown {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let mut fields = Vec::new();
         util::walk_markdown_fields(doc, "", &mut fields);
 
@@ -46,7 +48,12 @@ mod tests {
         let doc = json!({ "info": { "description": "See <script>alert(1)</script>" } });
         assert!(
             !NoScriptTagsInMarkdown
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -56,7 +63,12 @@ mod tests {
         let doc = json!({ "info": { "description": "A safe description." } });
         assert!(
             NoScriptTagsInMarkdown
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -66,7 +78,12 @@ mod tests {
         let doc = json!({ "paths": { "/x": { "get": { "summary": "<script src='x.js'>" } } } });
         assert!(
             !NoScriptTagsInMarkdown
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

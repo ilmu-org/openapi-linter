@@ -2,7 +2,37 @@
 
 All notable changes to refract are documented here.
 
-## [Unreleased] - v0.3.0
+## [Unreleased] - v0.4.0
+
+### Added
+
+4 new rules and cross-file `$ref` resolution:
+
+| Rule ID | Description | Severity |
+|---|---|---|
+| `oas3-schema` | Validate OAS 3.x document structure against the bundled OAS JSON Schema (3.0 or 3.1) | error |
+| `oas2-schema` | Validate OAS 2.0 document structure against the bundled Swagger JSON Schema | error |
+| `oas3-valid-schema-example` | Validate `example`/`examples` values against their enclosing schemas (OAS 3.x) | error |
+| `oas2-valid-schema-example` | Validate `example` values against their enclosing schemas (OAS 2.0) | error |
+
+### Changed
+
+- Cross-file `$ref` resolution is now active: external file refs are inlined before linting via an
+  eager pre-pass. HTTP refs remain unsupported and emit a warning violation. Cycle detection and
+  a depth limit of 64 prevent unbounded traversal.
+- `Rule::check` signature changed from `(doc, version)` to `(&LintContext)`, enabling rules to
+  access the shared boon schema registry and spec file path.
+- OAS 2.0, 3.0, and 3.1 JSON Schemas are now bundled in the binary (via `include_str!`), parsed
+  once on first use via `OnceLock`, and pre-registered in a shared boon registry per lint call.
+
+### Notes
+
+- OAS 3.1 `$ref` with sibling keywords: the `no-$ref-siblings` rule still fires for OAS 3.1
+  documents. OAS 3.1 formally allows `$ref` siblings but the rule is conservative by default;
+  disable it via ruleset config if needed.
+- `Deref'd<'a>` newtype and workspace extraction remain deferred (ADR-021/ADR-024).
+
+## [0.3.0] - 2026-04-15
 
 ### Added
 

@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// The top-level `tags` array must exist and be non-empty.
@@ -17,7 +18,8 @@ impl Rule for OpenApiTags {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let tags_ok = doc["tags"].as_array().is_some_and(|a| !a.is_empty());
         if tags_ok {
             return vec![];
@@ -52,7 +54,12 @@ info:
   version: "1.0"
 "#,
         );
-        let violations = OpenApiTags.check(&doc, OasVersion::V3_0);
+        let violations = OpenApiTags.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!violations.is_empty());
         assert_eq!(violations[0].rule_id, "openapi-tags");
     }
@@ -66,7 +73,12 @@ tags:
   - name: pets
 "#,
         );
-        let violations = OpenApiTags.check(&doc, OasVersion::V3_0);
+        let violations = OpenApiTags.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(violations.is_empty());
     }
 }

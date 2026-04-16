@@ -8,10 +8,14 @@ mod license_url;
 mod no_eval_in_markdown;
 mod no_ref_siblings;
 mod no_script_tags_in_markdown;
+mod oas2_schema;
+mod oas2_valid_schema_example;
 mod oas3_api_servers;
 mod oas3_parameter_description;
+mod oas3_schema;
 mod oas3_server_not_example_com;
 mod oas3_server_trailing_slash;
+mod oas3_valid_schema_example;
 mod open_api_tags;
 mod openapi_tags_alphabetical;
 mod openapi_tags_uniqueness;
@@ -32,7 +36,8 @@ mod tag_description;
 mod typed_enum;
 pub(crate) mod util;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 
 /// A lint rule that can check an `OpenAPI` document.
 pub trait Rule: Send + Sync {
@@ -42,8 +47,8 @@ pub trait Rule: Send + Sync {
     fn message(&self) -> &'static str;
     /// Severity used when no override is present in the ruleset config.
     fn default_severity(&self) -> Severity;
-    /// Run the rule against `doc` and return all violations found.
-    fn check(&self, doc: &serde_json::Value, version: OasVersion) -> Vec<Violation>;
+    /// Run the rule against the lint context and return all violations found.
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation>;
 }
 
 /// All HTTP methods that can carry an operation object.
@@ -95,5 +100,11 @@ pub fn default_registry() -> Vec<Box<dyn Rule>> {
         // v0.3.0 Phase 4: type-aware rules
         Box::new(duplicated_entry_in_enum::DuplicatedEntryInEnum),
         Box::new(typed_enum::TypedEnum),
+        // v0.4.0: JSON Schema structural validation rules
+        Box::new(oas3_schema::Oas3Schema),
+        Box::new(oas2_schema::Oas2Schema),
+        // v0.4.0: Example validation rules
+        Box::new(oas3_valid_schema_example::Oas3ValidSchemaExample),
+        Box::new(oas2_valid_schema_example::Oas2ValidSchemaExample),
     ]
 }

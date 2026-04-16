@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// When `info.contact` is present it must have at least a `name` or `email` field.
@@ -17,7 +18,8 @@ impl Rule for ContactProperties {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let contact = &doc["info"]["contact"];
         if contact.is_null() {
             return vec![];
@@ -50,7 +52,16 @@ mod tests {
     #[test]
     fn passes_when_no_contact() {
         let doc = parse_yaml("openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n");
-        assert!(ContactProperties.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            ContactProperties
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -58,7 +69,16 @@ mod tests {
         let doc = parse_yaml(
             "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n  contact:\n    name: Support\n",
         );
-        assert!(ContactProperties.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            ContactProperties
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -66,7 +86,16 @@ mod tests {
         let doc = parse_yaml(
             "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n  contact:\n    email: support@example.com\n",
         );
-        assert!(ContactProperties.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            ContactProperties
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -74,6 +103,15 @@ mod tests {
         let doc = parse_yaml(
             "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n  contact:\n    url: https://example.com\n",
         );
-        assert!(!ContactProperties.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            !ContactProperties
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }
