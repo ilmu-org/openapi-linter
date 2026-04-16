@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// Path keys must not end with a trailing slash.
@@ -19,7 +20,8 @@ impl Rule for PathKeysNoTrailingSlash {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let Some(paths) = doc["paths"].as_object() else {
             return vec![];
         };
@@ -60,7 +62,12 @@ mod tests {
                 "/pets/": {}
             }
         });
-        let v = PathKeysNoTrailingSlash.check(&doc, OasVersion::V3_0);
+        let v = PathKeysNoTrailingSlash.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "path-keys-no-trailing-slash");
     }
@@ -75,7 +82,12 @@ mod tests {
         });
         assert!(
             PathKeysNoTrailingSlash
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -90,7 +102,12 @@ mod tests {
         });
         assert!(
             PathKeysNoTrailingSlash
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -105,7 +122,12 @@ mod tests {
         });
         assert!(
             PathKeysNoTrailingSlash
-                .check(&doc, OasVersion::V2)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V2,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -115,7 +137,12 @@ mod tests {
         let doc = json!({ "openapi": "3.0.3" });
         assert!(
             PathKeysNoTrailingSlash
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

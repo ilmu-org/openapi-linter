@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// Every top-level tag must have a non-empty description.
@@ -19,7 +20,8 @@ impl Rule for TagDescription {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let Some(tags) = doc["tags"].as_array() else {
             return vec![];
         };
@@ -57,7 +59,12 @@ mod tests {
             "openapi": "3.0.3",
             "tags": [{ "name": "pets" }]
         });
-        let v = TagDescription.check(&doc, OasVersion::V3_0);
+        let v = TagDescription.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "tag-description");
     }
@@ -68,7 +75,12 @@ mod tests {
             "openapi": "3.0.3",
             "tags": [{ "name": "pets", "description": "" }]
         });
-        let v = TagDescription.check(&doc, OasVersion::V3_0);
+        let v = TagDescription.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 
@@ -78,12 +90,30 @@ mod tests {
             "openapi": "3.0.3",
             "tags": [{ "name": "pets", "description": "Everything about pets" }]
         });
-        assert!(TagDescription.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TagDescription
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
     fn no_tags_returns_empty() {
         let doc = json!({ "openapi": "3.0.3" });
-        assert!(TagDescription.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TagDescription
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

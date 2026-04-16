@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{Rule, util};
 
 /// No `eval(` string must appear in any markdown `description` or `summary` field.
@@ -17,7 +18,8 @@ impl Rule for NoEvalInMarkdown {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let mut fields = Vec::new();
         util::walk_markdown_fields(doc, "", &mut fields);
 
@@ -44,18 +46,45 @@ mod tests {
     #[test]
     fn triggers_on_eval_in_description() {
         let doc = json!({ "info": { "description": "Call eval(x) here." } });
-        assert!(!NoEvalInMarkdown.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            !NoEvalInMarkdown
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
     fn triggers_on_eval_in_summary() {
         let doc = json!({ "paths": { "/foo": { "get": { "summary": "eval(bad)" } } } });
-        assert!(!NoEvalInMarkdown.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            !NoEvalInMarkdown
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
     fn passes_when_no_eval() {
         let doc = json!({ "info": { "description": "A safe description." } });
-        assert!(NoEvalInMarkdown.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            NoEvalInMarkdown
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

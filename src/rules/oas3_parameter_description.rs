@@ -1,3 +1,4 @@
+use crate::lint::LintContext;
 use crate::model::{OasVersion, Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule, util};
 
@@ -24,7 +25,9 @@ impl Rule for Oas3ParameterDescription {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
+        let version = ctx.version;
         if !matches!(version, OasVersion::V3_0 | OasVersion::V3_1) {
             return vec![];
         }
@@ -124,7 +127,12 @@ mod tests {
                 }
             }
         });
-        let v = Oas3ParameterDescription.check(&doc, OasVersion::V3_0);
+        let v = Oas3ParameterDescription.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "oas3-parameter-description");
     }
@@ -151,7 +159,12 @@ mod tests {
         });
         assert!(
             Oas3ParameterDescription
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -177,7 +190,12 @@ mod tests {
             }
         });
         // PetId in components has no description; resolving the $ref should trigger.
-        let v = Oas3ParameterDescription.check(&doc, OasVersion::V3_0);
+        let v = Oas3ParameterDescription.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 
@@ -196,7 +214,12 @@ mod tests {
         });
         assert!(
             Oas3ParameterDescription
-                .check(&doc, OasVersion::V2)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V2,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

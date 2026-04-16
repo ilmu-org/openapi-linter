@@ -1,6 +1,7 @@
 use serde_json::Value;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// Each value in an `enum` array must be compatible with the declared schema `type`.
@@ -32,7 +33,8 @@ impl Rule for TypedEnum {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let mut violations = Vec::new();
         check_value(doc, "", &mut violations);
         violations
@@ -137,7 +139,12 @@ mod tests {
                 }
             }
         });
-        let v = TypedEnum.check(&doc, OasVersion::V3_0);
+        let v = TypedEnum.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "typed-enum");
     }
@@ -152,7 +159,16 @@ mod tests {
                 }
             }
         });
-        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -166,7 +182,16 @@ mod tests {
                 }
             }
         });
-        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -180,7 +205,16 @@ mod tests {
                 }
             }
         });
-        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -194,7 +228,16 @@ mod tests {
                 }
             }
         });
-        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -210,7 +253,16 @@ mod tests {
                 }
             }
         });
-        assert!(TypedEnum.check(&doc, OasVersion::V3_1).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_1,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -223,14 +275,28 @@ mod tests {
                 }
             }
         });
-        let v = TypedEnum.check(&doc, OasVersion::V3_0);
+        let v = TypedEnum.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 
     #[test]
     fn no_enum_returns_empty() {
         let doc = json!({ "openapi": "3.0.3" });
-        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -239,6 +305,15 @@ mod tests {
             .join("tests/fixtures/typed-enum/coercion.yaml");
         let content = std::fs::read_to_string(&path).unwrap();
         let doc: serde_json::Value = serde_yaml::from_str(&content).unwrap();
-        assert!(TypedEnum.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            TypedEnum
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

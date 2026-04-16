@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// Top-level tag names must be unique.
@@ -21,7 +22,8 @@ impl Rule for OpenApiTagsUniqueness {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let Some(tags) = doc["tags"].as_array() else {
             return vec![];
         };
@@ -66,7 +68,12 @@ mod tests {
                 { "name": "pets", "description": "Duplicate" }
             ]
         });
-        let v = OpenApiTagsUniqueness.check(&doc, OasVersion::V3_0);
+        let v = OpenApiTagsUniqueness.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "openapi-tags-uniqueness");
         assert!(v[0].path.contains("/tags/1"));
@@ -83,7 +90,12 @@ mod tests {
         });
         assert!(
             OpenApiTagsUniqueness
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -93,7 +105,12 @@ mod tests {
         let doc = json!({ "openapi": "3.0.3" });
         assert!(
             OpenApiTagsUniqueness
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

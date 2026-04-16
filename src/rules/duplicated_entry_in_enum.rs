@@ -1,6 +1,7 @@
 use serde_json::Value;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// `enum` arrays must not contain duplicate values (deep equality via `serde_json::Value` `PartialEq`).
@@ -21,7 +22,8 @@ impl Rule for DuplicatedEntryInEnum {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let mut violations = Vec::new();
         check_value(doc, "", &mut violations);
         violations
@@ -84,7 +86,12 @@ mod tests {
                 }
             }
         });
-        let v = DuplicatedEntryInEnum.check(&doc, OasVersion::V3_0);
+        let v = DuplicatedEntryInEnum.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "duplicated-entry-in-enum");
     }
@@ -99,7 +106,12 @@ mod tests {
                 }
             }
         });
-        let v = DuplicatedEntryInEnum.check(&doc, OasVersion::V3_0);
+        let v = DuplicatedEntryInEnum.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 
@@ -115,7 +127,12 @@ mod tests {
         });
         assert!(
             DuplicatedEntryInEnum
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -125,7 +142,12 @@ mod tests {
         let doc = json!({ "openapi": "3.0.3" });
         assert!(
             DuplicatedEntryInEnum
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }

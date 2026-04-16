@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// The `info` object must have a non-empty `description` string.
@@ -17,7 +18,8 @@ impl Rule for InfoDescription {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let desc_ok = doc["info"]["description"]
             .as_str()
             .is_some_and(|s| !s.is_empty());
@@ -54,7 +56,12 @@ info:
   version: "1.0"
 "#,
         );
-        let violations = InfoDescription.check(&doc, OasVersion::V3_0);
+        let violations = InfoDescription.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!violations.is_empty());
         assert_eq!(violations[0].rule_id, "info-description");
     }
@@ -70,7 +77,12 @@ info:
   description: A test API.
 "#,
         );
-        let violations = InfoDescription.check(&doc, OasVersion::V3_0);
+        let violations = InfoDescription.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(violations.is_empty());
     }
 }

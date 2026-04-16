@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule};
 
 /// Every tag string used on an operation must appear in the global `tags` array.
@@ -26,7 +27,8 @@ impl Rule for OperationTagDefined {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         // Build set of globally defined tag names.
         let global_tags: HashSet<&str> = doc["tags"]
             .as_array()
@@ -99,7 +101,12 @@ mod tests {
                 }
             }
         });
-        let v = OperationTagDefined.check(&doc, OasVersion::V3_0);
+        let v = OperationTagDefined.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "operation-tag-defined");
     }
@@ -118,7 +125,16 @@ mod tests {
                 }
             }
         });
-        assert!(OperationTagDefined.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            OperationTagDefined
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -134,13 +150,27 @@ mod tests {
                 }
             }
         });
-        let v = OperationTagDefined.check(&doc, OasVersion::V3_0);
+        let v = OperationTagDefined.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 
     #[test]
     fn no_paths_returns_empty() {
         let doc = json!({ "openapi": "3.0.3" });
-        assert!(OperationTagDefined.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            OperationTagDefined
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }
