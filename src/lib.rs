@@ -19,6 +19,8 @@ pub mod parser;
 pub mod position;
 /// Output formatting — text, JSON, and SARIF reporters.
 pub mod reporter;
+/// Cross-file `$ref` resolver: eager pre-pass that inlines external refs.
+pub mod resolver;
 /// Built-in lint rules and the [`rules::Rule`] trait.
 pub mod rules;
 /// Spectral-compatible ruleset loader.
@@ -27,7 +29,7 @@ pub mod ruleset;
 use std::path::{Path, PathBuf};
 
 use error::LintError;
-use model::Violation;
+use model::{Severity, Violation};
 
 /// Result type returned by [`lint_dir`]: one entry per spec file found.
 pub type DirLintResult = Vec<(PathBuf, Result<Vec<Violation>, LintError>)>;
@@ -42,7 +44,14 @@ pub type DirLintResult = Vec<(PathBuf, Result<Vec<Violation>, LintError>)>;
 /// Propagates [`LintError`] from parsing or ruleset loading.
 pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violation>, LintError> {
     // Pass 1: parse to serde_json::Value.
-    let doc = parser::parse(spec_path)?;
+    let raw_doc = parser::parse(spec_path)?;
+
+    // Pass 1b: resolve external $refs (eager pre-pass, ADR-023).
+    // Errors are converted to Violations and prepended; linting continues on
+    // the partially-resolved document so rules still run on resolvable portions.
+    let base_dir = spec_path.parent().unwrap_or(Path::new("."));
+    let (doc, resolve_errors) = resolver::resolve_external_refs(raw_doc, base_dir);
+
     let version = model::OasVersion::detect(&doc);
     if version == model::OasVersion::Unknown {
         eprintln!("warning: OpenAPI version not recognized, version-gated rules skipped");
@@ -74,7 +83,49 @@ pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violati
         }
     }
 
-    let mut violations = Vec::new();
+    // Convert $ref resolution errors to Violations and prepend them.
+    // They use a synthetic rule_id so they appear in output alongside rule violations.
+    let mut violations: Vec<Violation> = resolve_errors
+        .into_iter()
+        .map(|e| {
+            let (rule_id, message, severity) = match &e {
+                resolver::ResolveError::HttpRefForbidden { ref_str } => (
+                    "$ref-resolution",
+                    format!("HTTP $refs are not supported: {ref_str}"),
+                    Severity::Warn,
+                ),
+                resolver::ResolveError::FileNotFound { path, ref_str } => (
+                    "$ref-resolution",
+                    format!("$ref '{ref_str}' not found ({})", path.display()),
+                    Severity::Warn,
+                ),
+                resolver::ResolveError::MalformedFile { path, message } => (
+                    "$ref-resolution",
+                    format!(
+                        "malformed file {} referenced by $ref: {message}",
+                        path.display()
+                    ),
+                    Severity::Warn,
+                ),
+                resolver::ResolveError::PointerNotFound { path, pointer } => (
+                    "$ref-resolution",
+                    format!("$ref pointer '{pointer}' not found in {}", path.display()),
+                    Severity::Warn,
+                ),
+                resolver::ResolveError::Cycle { path } => (
+                    "$ref-resolution",
+                    format!("$ref cycle detected involving {}", path.display()),
+                    Severity::Error,
+                ),
+                resolver::ResolveError::DepthExceeded => (
+                    "$ref-resolution",
+                    "$ref resolution depth limit (64) exceeded".to_owned(),
+                    Severity::Error,
+                ),
+            };
+            Violation::new(rule_id, message, severity, "")
+        })
+        .collect();
 
     for rule in &registry {
         // Resolve effective severity:

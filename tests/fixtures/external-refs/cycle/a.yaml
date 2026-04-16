@@ -1,0 +1,2 @@
+SchemaA:
+  $ref: "./b.yaml#/SchemaB"

@@ -1,0 +1,15 @@
+openapi: "3.0.3"
+info:
+  title: Missing Pointer Test
+  version: "1.0"
+paths:
+  /items:
+    get:
+      summary: Test
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "./schema.yaml#/DoesNotExist"
