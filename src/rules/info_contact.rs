@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// The `info` object must have a `contact` field.
@@ -17,7 +18,8 @@ impl Rule for InfoContact {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let contact_ok = !doc["info"]["contact"].is_null();
         if contact_ok {
             return vec![];
@@ -52,7 +54,12 @@ info:
   version: "1.0"
 "#,
         );
-        let violations = InfoContact.check(&doc, OasVersion::V3_0);
+        let violations = InfoContact.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!violations.is_empty());
         assert_eq!(violations[0].rule_id, "info-contact");
     }
@@ -69,7 +76,12 @@ info:
     name: Support
 "#,
         );
-        let violations = InfoContact.check(&doc, OasVersion::V3_0);
+        let violations = InfoContact.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(violations.is_empty());
     }
 }

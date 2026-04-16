@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::Rule;
 
 /// When `info.license` is present it must also have a `url` field.
@@ -17,7 +18,8 @@ impl Rule for LicenseUrl {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let license = &doc["info"]["license"];
         if license.is_null() {
             // No license present — nothing to check.
@@ -49,7 +51,16 @@ mod tests {
     #[test]
     fn passes_when_no_license() {
         let doc = parse_yaml("openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n");
-        assert!(LicenseUrl.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            LicenseUrl
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -57,7 +68,16 @@ mod tests {
         let doc = parse_yaml(
             "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n  license:\n    name: MIT\n",
         );
-        assert!(!LicenseUrl.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            !LicenseUrl
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -65,6 +85,15 @@ mod tests {
         let doc = parse_yaml(
             "openapi: \"3.0.3\"\ninfo:\n  title: T\n  version: \"1\"\n  license:\n    name: MIT\n    url: https://opensource.org/licenses/MIT\n",
         );
-        assert!(LicenseUrl.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            LicenseUrl
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

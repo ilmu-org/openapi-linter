@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule};
 
 /// Every operation in `paths.*.{method}` must have a non-empty `operationId`.
@@ -17,7 +18,8 @@ impl Rule for OperationOperationId {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let mut violations = Vec::new();
 
         let Some(paths) = doc["paths"].as_object() else {
@@ -72,7 +74,12 @@ paths:
           description: OK
 "#,
         );
-        let violations = OperationOperationId.check(&doc, OasVersion::V3_0);
+        let violations = OperationOperationId.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!violations.is_empty());
         assert_eq!(violations[0].rule_id, "operation-operationId");
     }
@@ -92,7 +99,12 @@ paths:
           description: OK
 "#,
         );
-        let violations = OperationOperationId.check(&doc, OasVersion::V3_0);
+        let violations = OperationOperationId.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(violations.is_empty());
     }
 }

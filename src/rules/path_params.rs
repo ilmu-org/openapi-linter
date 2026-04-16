@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule, util};
 
 /// Every `{param}` token in a path template must have a matching `in: path`
@@ -20,7 +21,8 @@ impl Rule for PathParams {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let Some(paths) = doc["paths"].as_object() else {
             return vec![];
         };
@@ -132,7 +134,12 @@ mod tests {
                 }
             }
         });
-        let v = PathParams.check(&doc, OasVersion::V3_0);
+        let v = PathParams.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty(), "expected violation for undefined {{userId}}");
         assert_eq!(v[0].rule_id, "path-params");
     }
@@ -152,7 +159,16 @@ mod tests {
                 }
             }
         });
-        assert!(PathParams.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            PathParams
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -170,7 +186,16 @@ mod tests {
                 }
             }
         });
-        assert!(PathParams.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            PathParams
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -193,12 +218,30 @@ mod tests {
                 }
             }
         });
-        assert!(PathParams.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            PathParams
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
     fn no_paths_returns_empty() {
         let doc = json!({ "openapi": "3.0.3" });
-        assert!(PathParams.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            PathParams
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

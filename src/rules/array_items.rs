@@ -1,6 +1,7 @@
 use serde_json::Value;
 
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{Rule, util};
 
 /// Every schema with `type: array` must declare an `items` property.
@@ -26,7 +27,8 @@ impl Rule for ArrayItems {
         Severity::Error
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let mut violations = Vec::new();
         check_value(doc, doc, "", &mut violations);
         violations
@@ -112,7 +114,12 @@ mod tests {
                 }
             }
         });
-        let v = ArrayItems.check(&doc, OasVersion::V3_0);
+        let v = ArrayItems.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "array-items");
     }
@@ -130,7 +137,16 @@ mod tests {
                 }
             }
         });
-        assert!(ArrayItems.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            ArrayItems
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 
     #[test]
@@ -144,7 +160,12 @@ mod tests {
                 }
             }
         });
-        let v = ArrayItems.check(&doc, OasVersion::V3_0);
+        let v = ArrayItems.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         // BadArray directly triggers, Alias resolves to BadArray and triggers again.
         assert!(!v.is_empty());
     }
@@ -160,13 +181,27 @@ mod tests {
             }
         });
         // External ref cannot be resolved; should not trigger false positive.
-        let v = ArrayItems.check(&doc, OasVersion::V3_0);
+        let v = ArrayItems.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(v.is_empty());
     }
 
     #[test]
     fn no_paths_returns_empty() {
         let doc = json!({ "openapi": "3.0.3" });
-        assert!(ArrayItems.check(&doc, OasVersion::V3_0).is_empty());
+        assert!(
+            ArrayItems
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
+                .is_empty()
+        );
     }
 }

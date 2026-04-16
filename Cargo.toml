@@ -10,6 +10,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
+boon = "0.6.1"
 clap = { version = "4", features = ["derive"] }
 dunce = "1"
 serde = { version = "1", features = ["derive"] }

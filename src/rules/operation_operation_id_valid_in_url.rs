@@ -1,4 +1,5 @@
-use crate::model::{OasVersion, Severity, Violation};
+use crate::lint::LintContext;
+use crate::model::{Severity, Violation};
 use crate::rules::{HTTP_METHODS, Rule};
 
 /// `operationId` values must consist only of URL path-segment-safe characters.
@@ -22,7 +23,8 @@ impl Rule for OperationOperationIdValidInUrl {
         Severity::Warn
     }
 
-    fn check(&self, doc: &serde_json::Value, _version: OasVersion) -> Vec<Violation> {
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation> {
+        let doc = ctx.doc;
         let Some(paths) = doc["paths"].as_object() else {
             return vec![];
         };
@@ -88,7 +90,12 @@ mod tests {
                 }
             }
         });
-        let v = OperationOperationIdValidInUrl.check(&doc, OasVersion::V3_0);
+        let v = OperationOperationIdValidInUrl.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
         assert_eq!(v[0].rule_id, "operation-operationId-valid-in-url");
     }
@@ -105,7 +112,12 @@ mod tests {
         });
         assert!(
             OperationOperationIdValidInUrl
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -122,7 +134,12 @@ mod tests {
         });
         assert!(
             OperationOperationIdValidInUrl
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -139,7 +156,12 @@ mod tests {
         });
         assert!(
             OperationOperationIdValidInUrl
-                .check(&doc, OasVersion::V3_0)
+                .check(&crate::lint::LintContext {
+                    doc: &doc,
+                    version: crate::model::OasVersion::V3_0,
+                    schemas: &boon::Schemas::new(),
+                    base_path: None
+                })
                 .is_empty()
         );
     }
@@ -154,7 +176,12 @@ mod tests {
                 }
             }
         });
-        let v = OperationOperationIdValidInUrl.check(&doc, OasVersion::V3_0);
+        let v = OperationOperationIdValidInUrl.check(&crate::lint::LintContext {
+            doc: &doc,
+            version: crate::model::OasVersion::V3_0,
+            schemas: &boon::Schemas::new(),
+            base_path: None,
+        });
         assert!(!v.is_empty());
     }
 }

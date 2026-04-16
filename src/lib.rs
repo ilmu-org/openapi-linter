@@ -11,6 +11,8 @@
 
 /// Error types for linting operations.
 pub mod error;
+/// Shared lint context passed to rule implementations.
+pub mod lint;
 /// Data model types: [`model::Violation`], [`model::Severity`], [`model::OasVersion`].
 pub mod model;
 /// Spec file parser — handles YAML, YML, and JSON inputs.
@@ -25,10 +27,14 @@ pub mod resolver;
 pub mod rules;
 /// Spectral-compatible ruleset loader.
 pub mod ruleset;
+/// Bundled OAS JSON Schema constants (lazy-parsed via OnceLock).
+pub(crate) mod schemas;
 
 use std::path::{Path, PathBuf};
 
+use boon::Compiler;
 use error::LintError;
+use lint::LintContext;
 use model::{Severity, Violation};
 
 /// Result type returned by [`lint_dir`]: one entry per spec file found.
@@ -127,6 +133,16 @@ pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violati
         })
         .collect();
 
+    // Build boon schema registry with OAS schemas pre-registered (ADR-022).
+    let boon_schemas = build_oas_schema_registry(version);
+
+    let ctx = LintContext {
+        doc: &doc,
+        version,
+        schemas: &boon_schemas,
+        base_path: Some(spec_path),
+    };
+
     for rule in &registry {
         // Resolve effective severity:
         // - key absent => use rule default
@@ -143,7 +159,7 @@ pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violati
             continue;
         };
 
-        let mut rule_violations = rule.check(&doc, version);
+        let mut rule_violations = rule.check(&ctx);
         for v in &mut rule_violations {
             v.severity = severity.clone();
             if let Some(span) = pos_index.get(&v.path) {
@@ -158,6 +174,39 @@ pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violati
     violations.sort_by(|a, b| a.path.cmp(&b.path));
 
     Ok(violations)
+}
+
+/// Build a boon `Schemas` registry with the OAS JSON Schema pre-registered for
+/// the given OAS version.
+///
+/// This is called once per `lint()` invocation. The registry is passed to all
+/// rules via [`LintContext`]. Rules that validate examples register additional
+/// user-defined schemas in a separate mutable handle (Phase 3).
+fn build_oas_schema_registry(version: model::OasVersion) -> boon::Schemas {
+    let mut compiler = Compiler::new();
+    let mut boon_schemas = boon::Schemas::new();
+
+    let (schema_uri, schema_value) = match version {
+        model::OasVersion::V2 => (schemas::OAS2_SCHEMA_URI, schemas::oas2_schema().clone()),
+        model::OasVersion::V3_0 => (schemas::OAS3_0_SCHEMA_URI, schemas::oas3_0_schema().clone()),
+        model::OasVersion::V3_1 | model::OasVersion::Unknown => {
+            (schemas::OAS3_1_SCHEMA_URI, schemas::oas3_1_schema().clone())
+        }
+    };
+
+    // add_resource makes the schema available by URI for compile().
+    if let Err(e) = compiler.add_resource(schema_uri, schema_value) {
+        // Packaging bug — bundled schema has invalid URI. Fail loudly in debug,
+        // gracefully in release (rules that need boon will get an empty registry).
+        debug_assert!(false, "failed to register OAS schema in boon: {e}");
+    } else {
+        // Compile to pre-warm the registry. Errors are suppressed: if the
+        // bundled schema itself fails to compile (e.g. draft mismatch), the
+        // oas*-schema rules will emit no violations rather than crashing.
+        let _ = compiler.compile(schema_uri, &mut boon_schemas);
+    }
+
+    boon_schemas
 }
 
 /// Lint all `OpenAPI` spec files found by recursively walking `dir_path`.
