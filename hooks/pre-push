@@ -1,10 +1,5 @@
 #!/bin/sh
 # pre-push — mirrors CI checks exactly
-#
-# INSTALL:
-#   cp hooks/pre-push .git/hooks/pre-push
-#   chmod +x .git/hooks/pre-push
-#
 # Requires: cargo-audit, cargo-deny
 
 set -e

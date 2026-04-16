@@ -60,14 +60,13 @@ Final PR: `build/vX.X.X -> main`. Open after all phase PRs merged and integratio
 
 ## Git hooks
 
-Templates in `hooks/`. Install:
+Hooks live in `hooks/`. After cloning, activate with:
 ```
-cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
-cp hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+git config core.hooksPath hooks
 ```
 
 Both hooks run the full CI check suite: fmt, clippy, tests, audit, deny, doc.
-When CI gains a new check, add it to both hooks and both `hooks/` templates.
+When CI gains a new check, add it to both `hooks/pre-commit` and `hooks/pre-push`.
 
 ## Writing .ilmu files and prompts
 

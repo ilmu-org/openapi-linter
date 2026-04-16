@@ -1,10 +1,5 @@
 #!/bin/sh
 # pre-commit — mirrors CI checks exactly
-#
-# INSTALL:
-#   cp hooks/pre-commit .git/hooks/pre-commit
-#   chmod +x .git/hooks/pre-commit
-#
 # Requires: cargo-audit, cargo-deny
 
 set -e
