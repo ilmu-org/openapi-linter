@@ -1,304 +1,259 @@
 # Archived milestones: .ilmu/archive/
 # v0.1.0: .ilmu/archive/plan-v0.1.0.md (complete)
 # v0.2.0: .ilmu/archive/plan-v0.2.0.md (complete)
+# v0.3.0: .ilmu/archive/plan-v0.3.0.md (complete)
 
 ---
 
-milestone: v0.3.0
-hypothesis: >
-  Teams already using Spectral replace it with refract after v0.3.0 because the
-  32-rule built-in set covers their active .spectral.yaml rules and produces zero
-  false positives on real-world bundled specs.
+# v0.4.0 Plan
 
-scope:
-  # --- Phase 1: Structural-only rules (PR 1 of 4) ---
-  # No resolve_ref calls. Version-gated rules use temporary inline check on
-  # src/model OasVersion; Phase 2 refactors call sites to detect_oas_version in util.rs.
-  # Each rule lands with positive and negative fixtures. Tests pass before next step.
+## Scope
 
-  - >-
-    Rule: path-keys-no-trailing-slash. Severity: warn. Applies to: 2.x and 3.x.
-    Check: each key in paths object must not end with "/".
-    Doc note: matches Spectral permissive default; catches trailing slash on path keys only.
-    Positive fixture: tests/fixtures/path-keys-no-trailing-slash/violation.yaml
-    (path "/pets/" triggers violation).
-    Negative fixture: tests/fixtures/path-keys-no-trailing-slash/clean.yaml
-    (path "/pets" passes clean).
+4 new rules: `oas3-schema`, `oas2-schema`, `oas3-valid-schema-example`, `oas2-valid-schema-example`.
+Cross-file `$ref` resolver infrastructure.
+Boon crate integration for JSON Schema evaluation.
+Rule trait refactor: `fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation>`.
+Optional parallel chore: GHA Node.js 24 migration (ADR-025).
 
-  - >-
-    Rule: path-not-include-query. Severity: error. Applies to: 2.x and 3.x.
-    Check: each key in paths object must not contain "?".
-    Positive fixture: tests/fixtures/path-not-include-query/violation.yaml
-    (path "/pets?type=dog" triggers violation).
-    Negative fixture: tests/fixtures/path-not-include-query/clean.yaml
-    (path "/pets" passes clean).
+## Out of scope
 
-  - >-
-    Rule: path-declarations-must-exist. Severity: error. Applies to: 2.x and 3.x.
-    Check: each path key must not contain empty or whitespace-only path parameter braces.
-    Detection: regex \{\s*\} on path string catches "{}" and "{ }" (S2 resolution).
-    Positive fixture: tests/fixtures/path-declarations-must-exist/violation.yaml
-    (path "/pets/{}" triggers violation).
-    Negative fixture: tests/fixtures/path-declarations-must-exist/clean.yaml
-    (path "/pets/{petId}" passes clean).
+- Deref'd<'a> newtype: 6 deref-dependent rule files in v0.4.0, threshold >8. Defer to v0.5.0.
+- Workspace extraction (refract-core): no consumer trigger. ADR-024 continues ADR-001.
+- HTTP $ref support: rejected in ADR-023.
+- Spectral custom rule format: out of scope all v0.x.
 
-  - >-
-    Rule: openapi-tags-uniqueness. Severity: error. Applies to: 2.x and 3.x.
-    Check: top-level tags array must not contain two objects with same name field.
-    Positive fixture: tests/fixtures/openapi-tags-uniqueness/violation.yaml
-    (two tags both named "pets").
-    Negative fixture: tests/fixtures/openapi-tags-uniqueness/clean.yaml
-    (all tag names unique).
+## Deferred from v0.3.0 (now in scope)
 
-  - >-
-    Rule: tag-description. Severity: warn. Applies to: 2.x and 3.x.
-    Check: each object in top-level tags array must have non-empty description field.
-    Positive fixture: tests/fixtures/tag-description/violation.yaml
-    (tag object with no description field).
-    Negative fixture: tests/fixtures/tag-description/clean.yaml
-    (all tags have non-empty descriptions).
+- Cross-file $ref resolution (ADR-020 -> ADR-023)
+- JSON Schema validation rules (ADR-019 -> ADR-022)
 
-  - >-
-    Rule: oas3-server-trailing-slash. Severity: warn. Applies to: 3.x only.
-    Check: each server.url in servers array must not end with "/".
-    OAS version gate: skip if version resolves to V2.
-    Positive fixture: tests/fixtures/oas3-server-trailing-slash/violation.yaml
-    (url "https://api.example.com/v1/" triggers violation).
-    Negative fixture: tests/fixtures/oas3-server-trailing-slash/clean.yaml
-    (url "https://api.example.com/v1" passes clean).
+## ADRs
 
-  - >-
-    Rule: oas3-server-not-example.com. Severity: warn. Applies to: 3.x only.
-    Check: no server.url in servers array may use example.com host.
-    OAS version gate: skip if version resolves to V2.
-    Positive fixture: tests/fixtures/oas3-server-not-example.com/violation.yaml
-    (url "https://example.com/v1" triggers violation).
-    Negative fixture: tests/fixtures/oas3-server-not-example.com/clean.yaml
-    (url "https://api.myservice.com/v1" passes clean).
+- ADR-022: Boon crate integration, LintContext, registry lifetime
+- ADR-023: Eager pre-pass cross-file $ref resolver
+- ADR-024: Workspace structure deferred
+- ADR-025: GHA Node.js 24 migration (standalone chore)
 
-  - >-
-    Rule: no-$ref-siblings. Severity: warn. Applies to: OAS 2.x and 3.0 only, skip on 3.1.
-    Format gate: if detect_oas_version returns V3_1, return empty violations immediately.
-    OAS 3.1 adopts JSON Schema 2020-12 which permits $ref siblings; rule does not apply.
-    Rule NOT in OAS-version-gated list in ADR-021; skip logic lives inside rule check() implementation (C1 resolution).
-    Scan positions: Schema Objects and Response Objects only, not every Value node.
-    Check: no object containing $ref key may also contain sibling fields.
-    Positive fixture: tests/fixtures/no-ref-siblings/violation.yaml
-    (schema object with both "$ref" and "description" sibling triggers violation).
-    Negative fixture: tests/fixtures/no-ref-siblings/clean.yaml
-    ("$ref" alone, no sibling fields).
+---
 
-  - >-
-    Rule: oas3-api-servers. Severity: warn. Applies to: 3.x only.
-    Check: document must define non-empty top-level servers array.
-    OAS version gate: skip if version resolves to V2.
-    Positive fixture: tests/fixtures/oas3-api-servers/violation.yaml
-    (OAS 3.0 document with no servers key).
-    Negative fixture: tests/fixtures/oas3-api-servers/clean.yaml
-    (servers array with at least one entry).
+## Build branches
 
-  - >-
-    Rule: operation-success-response. Severity: warn. Applies to: 2.x and 3.x.
-    Check: each operation object must define at least one 2xx response.
-    Positive fixture: tests/fixtures/operation-success-response/violation.yaml
-    (operation with only 400 and 500 responses).
-    Negative fixture: tests/fixtures/operation-success-response/clean.yaml
-    (operation with 200 response).
+Integration branch: `build/v0.4.0` off `main`.
+Phase branches: `phase1/v0.4.0`, `phase2/v0.4.0`, `phase3/v0.4.0`.
+Phase 1 branches from `build/v0.4.0`. Each subsequent phase branches from prior phase branch.
+Each phase opens PR targeting `build/v0.4.0`.
+Optional chore PR opens against `main` independently (no dependency on build/v0.4.0).
 
-  - >-
-    Rule: operation-operationId-valid-in-url. Severity: warn. Applies to: 2.x and 3.x.
-    Check: if present, operationId must consist solely of URL path-segment-safe characters.
-    Regex: [A-Za-z0-9\-._~:@!$&()*+,;=]+ (whitespace and non-ASCII rejected).
-    Doc note in rule file: "matches Spectral permissive default; catches whitespace and
-    non-URL-safe characters only" (M1 resolution).
-    Positive fixture: tests/fixtures/operation-operationId-valid-in-url/violation.yaml
-    (operationId "get pets list" with space triggers violation).
-    Negative fixture: tests/fixtures/operation-operationId-valid-in-url/clean.yaml
-    (operationId "listPets" passes clean).
+---
 
-  # --- Phase 2: util.rs additions (PR 2 of 4) ---
-  # Adds OasVersion enum and detect_oas_version() to src/rules/util.rs.
-  # Updates resolve_ref doc-comment with deref-before-compare contract.
-  # Refactors Phase 1 version-check inlines to use new helper.
-  # No new rules in this phase.
+## Phase 1: Cross-file $ref resolver
 
-  - >-
-    Add OasVersion enum (variants: V2, V3_0, V3_1, Unknown) and
-    detect_oas_version(doc: &Value) -> OasVersion to src/rules/util.rs.
-    Detection order: check doc["swagger"] first, then doc["openapi"] (M2 resolution,
-    behavior frozen in ADR-021).
-    When detect_oas_version returns Unknown, emit one stderr line per lint run:
-    "warning: OpenAPI version not recognized, version-gated rules skipped" (S5 resolution).
-    Update doc-comment on resolve_ref(doc, pointer, depth) -> Option<&Value> to state
-    deref-before-compare contract: callers must invoke resolve_ref before comparing schema
-    or parameter fields; if None returned (external $ref or depth limit exceeded), treat
-    node as opaque and skip to avoid false positives (C2 resolution).
-    Refactor Phase 1 version-check inlines in oas3-* rules and no-$ref-siblings to call
-    detect_oas_version from util.rs instead of inline checks added in Phase 1.
+**PR:** `phase1/v0.4.0` -> `build/v0.4.0`
 
-  # --- Phase 3: Deref-dependent rules (PR 3 of 4) ---
-  # All rules call resolve_ref before comparing schema or parameter fields.
-  # Each rule requires at least one fixture where parameter or schema is $ref to component. Mandatory per S3 resolution.
+### New files
 
-  - >-
-    Rule: array-items. Severity: error. Applies to: 2.x and 3.x.
-    Check: every schema object with type "array" must define items property.
-    Deref: call resolve_ref on each schema $ref before checking items. If
-    resolve_ref returns None, skip (treat as opaque, avoids false positives on external $ref).
-    Inline comment in rule file must reference ADR-021 deref-before-compare contract.
-    Positive fixture: tests/fixtures/array-items/violation.yaml
-    (inline schema with type "array" and no items field).
-    Negative fixture: tests/fixtures/array-items/clean.yaml
-    (schema with type "array" and valid items object).
-    Deref fixture: tests/fixtures/array-items/ref-violation.yaml
-    ($ref to components/schemas entry that is type "array" with no items;
-    must trigger violation after resolve_ref -- required per S3).
+- `src/resolver.rs`: `pub fn resolve_external_refs(doc: Value, base_path: &Path) -> Result<Value, Vec<ResolveError>>`
+- `tests/fixtures/external-refs/`: fixture spec trees for resolver integration tests
 
-  - >-
-    Rule: oas3-parameter-description. Severity: warn. Applies to: 3.x only.
-    Check: every parameter object must have non-empty description field.
-    OAS version gate: skip if detect_oas_version returns V2.
-    Deref: call resolve_ref on each parameter $ref before checking description. If
-    resolve_ref returns None, skip.
-    Inline comment in rule file must reference ADR-021 deref-before-compare contract.
-    Positive fixture: tests/fixtures/oas3-parameter-description/violation.yaml
-    (parameter object with no description field).
-    Negative fixture: tests/fixtures/oas3-parameter-description/clean.yaml
-    (all parameters have non-empty descriptions).
-    Deref fixture: tests/fixtures/oas3-parameter-description/ref-violation.yaml
-    ($ref to components/parameters entry with no description; must trigger violation
-    after resolve_ref -- required per S3).
+### New types
 
-  - >-
-    Rule: operation-parameters. Severity: warn. Applies to: 2.x and 3.x.
-    Check: after merging path-level and operation-level parameters, no two entries may
-    share same (name, in) pair.
-    Merge rule (S6 resolution): operation-level parameters override path-level when
-    (name, in) matches. Overridden path-level copy DROPPED from dedup comparison set.
-    Dedup uses: (path-level params minus overridden copies) plus operation-level params.
-    Without drop rule, valid override produces false-positive duplicate violation.
-    Deref: call resolve_ref on each parameter $ref before extracting (name, in). If
-    resolve_ref returns None, skip.
-    Inline comment in rule file must reference ADR-021 deref-before-compare contract.
-    Positive fixture: tests/fixtures/operation-parameters/violation.yaml
-    (two inline operation-level parameters with identical name and in values).
-    Negative fixture: tests/fixtures/operation-parameters/clean.yaml
-    (operation-level parameter overrides path-level on matching (name, in), no duplicate after merge).
-    Deref fixture: tests/fixtures/operation-parameters/ref-violation.yaml
-    ($ref parameter in components duplicated as inline at operation level;
-    must trigger violation after resolve_ref -- required per S3).
+```rust
+pub enum ResolveError {
+    FileNotFound { path: PathBuf, ref_str: String },
+    MalformedFile { path: PathBuf, message: String },
+    PointerNotFound { path: PathBuf, pointer: String },
+    Cycle { path: PathBuf },
+    HttpRefForbidden { ref_str: String },
+    DepthExceeded,
+}
+```
 
-  - >-
-    Rule: operation-tag-defined. Severity: warn. Applies to: 2.x and 3.x.
-    Check: each string in operation tags array must appear in top-level tags array by name.
-    Deref: call resolve_ref on operation object before reading tags array when reached via $ref. If resolve_ref returns None, skip.
-    Inline comment in rule file must reference ADR-021 deref-before-compare contract.
-    Positive fixture: tests/fixtures/operation-tag-defined/violation.yaml
-    (operation tags array contains "pets", top-level tags only has "store").
-    Negative fixture: tests/fixtures/operation-tag-defined/clean.yaml
-    (operation tag matches top-level tags entry by name).
-    Deref fixture: tests/fixtures/operation-tag-defined/ref-violation.yaml
-    ($ref to component operation object whose tags array references undefined tag;
-    must trigger violation after resolve_ref -- required per S3).
+### Algorithm
 
-  # --- Phase 4: Type-aware rules (PR 4 of 4) ---
-  # Both rules inspect enum arrays using ADR-021 coercion semantics.
+Depth-first walk of `Value` tree. On object node with `"$ref"` key:
+- `#` prefix: skip (internal ref).
+- `http://` / `https://` prefix: return `ResolveError::HttpRefForbidden`.
+- Otherwise: parse as `path#/pointer`. Resolve path relative to `base_path`. Cache lookup (`HashMap<PathBuf, Value>`). Navigate pointer. Replace node with inlined content. Recurse using target file's directory as new base.
+Cycle detection: `HashSet<(PathBuf, String)>` of (canonical_path, json_pointer). Depth limit: 64.
 
-  - >-
-    Rule: duplicated-entry-in-enum. Severity: error. Applies to: 2.x and 3.x.
-    Check: no enum array in any schema may contain two entries equal by serde_json::Value PartialEq.
-    Positive fixture: tests/fixtures/duplicated-entry-in-enum/violation.yaml
-    (enum: [1, 2, 1] triggers violation).
-    Negative fixture: tests/fixtures/duplicated-entry-in-enum/clean.yaml
-    (enum: [1, 2, 3] passes clean).
+### LintError variants to add (src/error.rs or src/lib.rs)
 
-  - >-
-    Rule: typed-enum. Severity: warn. Applies to: 2.x and 3.x.
-    Check: each value in enum array must be compatible with declared schema type.
-    Coercion semantics (ADR-021): integer and number accept any JSON numeric Value;
-    integer additionally requires fract() == 0.0 to permit YAML-coerced values such as 1.0.
-    OAS 3.1 multi-type schemas (type as array) pass if any listed type matches.
-    Edge cases in fixture matrix to freeze coercion behavior (S4 resolution):
-      1e30 under type integer: fract() == 0.0 in f64 so passes per ADR-021; test freezes behavior.
-      -0.0 under type integer: fract() == 0.0 so passes; test freezes behavior.
-      NaN: not representable as valid JSON number in serde_json; treat as absent, skip.
-      Infinity: not representable as valid JSON number in serde_json; treat as absent, skip.
-      [1.0, 2.0] under type integer: each entry has fract() == 0.0, all pass.
-    Positive fixture: tests/fixtures/typed-enum/violation.yaml
-    (enum: ["cat", "dog"] with type: integer triggers violation).
-    Negative fixture: tests/fixtures/typed-enum/clean.yaml
-    (enum: [1, 2, 3] with type: integer passes clean).
-    Edge-case fixture: tests/fixtures/typed-enum/coercion.yaml
-    (enum: [1.0, 2.0] with type integer passes; 1e30 with type integer passes; string
-    value with type number fails -- freezes fract() == 0.0 semantics).
+```rust
+LintError::UnresolvableRef { path: PathBuf, ref_str: String }
+LintError::RefCycle { path: PathBuf }
+LintError::HttpRefNotSupported { ref_str: String }
+LintError::RefDepthExceeded
+```
 
-  # --- Integration check (runs after all 4 phases) ---
+### Integration point
 
-  - >-
-    Integration: run "cargo test" to confirm all 17 new rules pass and no regression
-    on existing 15 rules (32 total). Verify stripped release binary remains within ~5 MB via
-    "cargo build --release && ls -lh target/release/refract".
-    Update CHANGELOG.md for v0.3.0: document 17 new rules, note external $ref nodes treated
-    as opaque (false negatives only, no false positives), note oas3-schema and related
-    schema-validation rules deferred to v0.4.0 (ADR-019, ADR-020).
-    Update README.md: add callouts for cross-file $ref gap and schema-validation deferral,
-    each linking v0.4.0 milestone (ADR-020).
-    Update PR template: add reviewer checklist line "[ ] Rules that call resolve_ref handle
-    None by skipping, not by panicking or emitting a false violation."
+`src/lib.rs` `lint()`: call `resolve_external_refs(doc, base_path)` after parse, before rules. Errors prepended to result. Continue on partial resolution (best-effort).
 
-architecture_decisions:
-  - "detect_oas_version in src/rules/util.rs checks doc[\"swagger\"] first, then doc[\"openapi\"]. Behavior frozen per ADR-021 M2 resolution. Unknown variant emits one-time stderr diagnostic per lint run."
-  - "no-$ref-siblings is format-gated inside its own check() implementation, not listed in shared OAS-version-gated rule table from ADR-021. Rule returns empty violations for V3_1. Scan positions: Schema Objects and Response Objects only."
-  - "resolve_ref(doc, pointer, depth) -> Option<&Value> is canonical deref utility. No thin deref() wrapper added. Rules call resolve_ref directly and handle None by treating node as opaque. All plan references use resolve_ref by name (C2 resolution)."
-  - "operation-parameters merge: operation-level entries override path-level on matching (name, in). Overridden path-level entry dropped from dedup comparison set to prevent false-positive violations on valid overrides (S6 resolution)."
-  - "Each of 4 phases ships as separate PR. Phases can be reviewed and merged independently. Bounds reviewer load and permits partial milestone delivery (M3 resolution)."
-  - "Unknown rule IDs in .spectral.yaml already emit stderr warning in v0.2.0. No behavior change needed in v0.3.0 (S1 resolution)."
+`lint_dir()`: pass each file's path as `base_path` to `lint()`.
 
-agent_gaps: []
+### Known limitation
 
-out_of_scope:
-  - "oas3-schema, oas2-schema, oas3-valid-schema-example, oas2-valid-schema-example: deferred to v0.4.0. Requires JSON Schema evaluator; boon is leading candidate (pure Rust, MIT, drafts 4 through 2020-12). See ADR-019."
-  - "Cross-file $ref resolution: deferred to v0.4.0. Internal-only deref from ADR-015 stays v0.3.0 contract. External $ref nodes treated as opaque (false negatives only, no false positives). README and CHANGELOG must document gap. See ADR-020."
-  - "Homebrew tap: conditional on traction signal from v0.2.0. Carries from v0.2.0 out_of_scope."
-  - "JSON spec line/col: hard deferral from v0.2.0 unless user demand materialises."
-  - "Strict typed-enum mode: could be --strict flag in v0.4.0 if demand emerges."
-  - "Deref'd<'a> newtype to enforce deref-before-compare at type level: re-evaluate if v0.4.0 brings deref-dependent rule count above 8 (ADR-021 escalation trigger)."
-  - "refract-core workspace crate extraction: no external library consumer yet. Milestone: v0.4.0 or later."
+OAS 3.1 `$ref` siblings (`summary`, `description`) lost during inlining. Documented in ADR-023. Not addressed in v0.4.0.
 
-architect_notes:
-  # Team-lead resolutions of critic findings C1, C2, S5, S6 reflected here.
-  # ADR-018 and ADR-021 are primary sources; notes extend with resolved specifics.
+### Windows
 
-  - title: "no-$ref-siblings is format-gated, not listed in OAS-version-gated rules"
-    adr: ADR-018
-    change: >
-      Rule applies to OAS 2.x and 3.0 only. OAS 3.1 adopts JSON Schema 2020-12
-      which permits $ref siblings in Schema Objects, so rule returns empty violations
-      when detect_oas_version returns V3_1. Skip logic lives inside rule check()
-      implementation; not in shared version-gated rule list from ADR-021.
-      Scan positions: Schema Objects and Response Objects only.
+Use `dunce` crate for path canonicalization (avoids UNC paths). Add `dunce` to dependencies.
 
-  - title: "resolve_ref is canonical deref utility, no wrapper added"
-    adr: ADR-021
-    change: >
-      ADR-021 referred to deref() aspirationally. Shipped function is
-      resolve_ref(doc, pointer, depth) -> Option<&Value> in src/rules/util.rs. No thin
-      deref() wrapper added in v0.3.0. Rules call resolve_ref directly and handle None
-      by treating node as opaque (skip, no violation) to avoid false positives on external $ref.
+### Tests
 
-  - title: "detect_oas_version Unknown branch emits one-time diagnostic"
-    adr: ADR-021
-    change: >
-      When detect_oas_version returns Unknown, refract emits one stderr line per lint run:
-      "warning: OpenAPI version not recognized, version-gated rules skipped".
-      Prevents silent coverage gaps for users on OAS 3.2 pre-releases or
-      non-standard version strings such as "3.1.0-rc1".
+Unit tests in `src/resolver.rs`. Integration tests in `tests/` with fixture spec trees covering: basic external ref, nested external ref, cycle, missing file, missing pointer, HTTP ref rejection, depth limit.
 
-  - title: "operation-parameters merge drops overridden path-level entries"
-    adr: ADR-018
-    change: >
-      When operation-level parameter shares (name, in) with path-level parameter,
-      path-level copy dropped from dedup comparison set. Dedup uses:
-      path-level parameters minus overridden entries, plus operation-level parameters.
-      Without this rule, valid operation-level override produces false-positive
-      duplicate violation against path-level copy it was intended to replace.
+### No rule changes in Phase 1
+
+All rule signatures stay unchanged. `LintContext` refactor deferred to Phase 2.
+
+---
+
+## Phase 2: Boon integration + structural schema rules
+
+**PR:** `phase2/v0.4.0` -> `build/v0.4.0`
+**Branches from:** `phase1/v0.4.0`
+
+### New files
+
+- `src/schemas.rs`: OAS JSON Schema constants and OnceLock init
+- `src/lint.rs` (or `src/lib.rs`): `LintContext<'a>` struct
+- `src/rules/oas3_schema.rs`
+- `src/rules/oas2_schema.rs`
+
+### LintContext
+
+```rust
+pub(crate) struct LintContext<'a> {
+    pub doc: &'a serde_json::Value,
+    pub version: OasVersion,
+    pub schemas: &'a boon::Schemas,
+    pub base_path: Option<&'a std::path::Path>,
+}
+```
+
+### Schema bundling
+
+```rust
+// src/schemas.rs
+static OAS3_0_SCHEMA: OnceLock<serde_json::Value> = OnceLock::new();
+static OAS3_1_SCHEMA: OnceLock<serde_json::Value> = OnceLock::new();
+static OAS2_SCHEMA: OnceLock<serde_json::Value> = OnceLock::new();
+
+pub(crate) fn oas3_0_schema() -> &'static serde_json::Value { ... }
+// etc.
+```
+
+OAS JSON Schema files bundled via `include_str!()`. Stored in `assets/schemas/`.
+
+### Registry lifetime
+
+One `boon::Schemas` per `lint_dir()` invocation, shared across all files. Single-file `lint()`: one per call. OAS schemas pre-registered at construction.
+
+### Rule trait refactor
+
+```rust
+pub(crate) trait Rule {
+    fn id(&self) -> &'static str;
+    fn check(&self, ctx: &LintContext<'_>) -> Vec<Violation>;
+}
+```
+
+All 32 existing rules: mechanical update from `(doc: &Value, version: OasVersion)` to `ctx: &LintContext<'_>`. No behavior change. `ctx.doc` and `ctx.version` substituted at call sites.
+
+### oas3-schema rule
+
+Validates entire OAS 3.x doc against bundled OAS 3.0 or 3.1 JSON Schema (gated by `ctx.version`). Uses `ctx.schemas.validate(ctx.doc, schema_url)`. One `Violation` per boon leaf output unit (JSON Pointer path + error message). Truncated at 64 per call.
+
+### oas2-schema rule
+
+Validates entire OAS 2.0 doc against bundled OAS 2.0 JSON Schema. Same truncation.
+
+### Error translation
+
+Per leaf boon output unit -> one `Violation`:
+- `rule_id`: rule name
+- `path`: JSON Pointer from unit's instance location
+- `message`: unit's error description
+Non-leaf units skipped. If tree exceeds 64 leaf violations per rule call, truncate and append: `"... N more schema violations omitted"`.
+
+### Cargo.toml additions
+
+```toml
+boon = "0.6.1"
+dunce = "1"   # from Phase 1
+```
+
+`assets/schemas/` directory with OAS JSON Schema files (downloaded or committed).
+
+---
+
+## Phase 3: Example validation rules
+
+**PR:** `phase3/v0.4.0` -> `build/v0.4.0`
+**Branches from:** `phase2/v0.4.0`
+
+### New files
+
+- `src/rules/oas3_valid_schema_example.rs`
+- `src/rules/oas2_valid_schema_example.rs`
+
+### oas3-valid-schema-example
+
+Walk OAS 3.x doc. For each schema object with `example` field (or `examples` map):
+1. Locate schema. Call `resolve_ref(ctx.doc, pointer, depth)` if schema is `$ref` (deref-dependent).
+2. Register schema in `ctx.schemas` if not already registered. Boon compile failure: `LintError::MalformedSchema { path, message }`.
+3. Validate example against schema. One `Violation` per boon leaf output unit. Truncated at 64.
+
+### oas2-valid-schema-example
+
+Same pattern for OAS 2.0 `definitions` and parameter/response schemas with `example` fields.
+
+### Malformed schema handling
+
+Boon compile failure on user schema -> `LintError::MalformedSchema`, not `Violation`. Rule skips example validation for that schema. Subsequent schemas in same doc still validated.
+
+### Deref dependency
+
+Both rules call `resolve_ref` for schema `$ref` resolution. Count: 4 existing + 2 new = 6 deref-dependent rule files. Threshold >8 not triggered. `Deref'd<'a>` newtype deferred.
+
+---
+
+## Optional chore: GHA Node.js 24 migration
+
+**PR:** against `main` (standalone, no dependency on build/v0.4.0)
+**Owner:** cicd agent or developer
+
+Update `.github/workflows/ci.yml` and `.github/workflows/release.yml`:
+- `actions/checkout@v4` -> `actions/checkout@v6`
+- `actions/upload-artifact@v4` -> `actions/upload-artifact@v7`
+- `actions/download-artifact@v4` -> `actions/download-artifact@v8`
+- `softprops/action-gh-release@v2` -> `softprops/action-gh-release@v3`
+
+`Swatinem/rust-cache@v2` and `dtolnay/rust-toolchain@stable` are composite actions; no change needed.
+
+Before merging: check `softprops/action-gh-release@v3` release notes for breaking input changes. Merge when all CI checks green.
+
+---
+
+## Architect notes
+
+### Phase sequencing rationale
+
+Phase 1 first: resolver pure infrastructure, standalone testable, no rule changes. Isolates resolver bugs from boon bugs.
+
+Phase 2 second: LintContext refactor touches all 32 rule files -- mechanical but broad. Boon integration and oas3/oas2-schema rules added same PR since LintContext prerequisite for both.
+
+Phase 3 third: example validation rules require both resolver (fully-resolved doc) and boon registry (from Phase 2 LintContext). Cannot ship before Phase 2.
+
+### boon::Schemas mutability
+
+`boon::Schemas` built by `boon::Compiler`. User-defined schema registration during `check()` calls requires `&mut Schemas` or interior mutability. If boon API requires `&mut`, wrap in `RefCell` or pre-register all schemas before rule evaluation. Verify boon 0.6.1 API signature before implementation.
+
+### dunce dependency
+
+Add `dunce = "1"` for Windows UNC path normalization in resolver. No impact on Linux/macOS builds.
+
+### Rule count after v0.4.0
+
+32 existing + 4 new = 36 rules total.

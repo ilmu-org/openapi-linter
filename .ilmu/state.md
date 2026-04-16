@@ -4,9 +4,9 @@ project_type: cli-tool
 target_ecosystem: cross-platform (macOS, Linux, Windows)
 build_team: rust_build_team
 
-current_milestone: v0.3.0
-phase: released
-current_task: v0.3.0 released -- monitoring signal
+current_milestone: v0.4.0
+phase: planning
+current_task: v0.4.0 scoping complete -- awaiting build
 completed_tasks:
   - planning/rust-architect
   - planning/rust-critic
@@ -19,6 +19,7 @@ completed_tasks:
   - v0.3.0-scoping
   - v0.3.0-build
   - v0.3.0-release
+  - v0.4.0-scoping
 
 open_questions: []
 
@@ -40,10 +41,16 @@ milestones:
       enum integrity. No Spectral needed.
     scope: see .ilmu/archive/plan-v0.3.0.md
     status: complete
+  v0.4.0:
+    hypothesis: >
+      Cross-file $ref resolution + JSON Schema validation (boon) + 4 new rules
+      bring refract to full structural correctness parity with Spectral OAS ruleset.
+    scope: see .ilmu/plan.md
+    status: scoping
   v1.0.0:
     hypothesis: public launch -- promote when feature-complete + stable
     scope: TBD
     status: future
 
 last_updated: 2026-04-15
-last_agent: claude-sonnet-4-6 (v0.3.0 release)
+last_agent: claude-sonnet-4-6 (v0.4.0 scoping)
