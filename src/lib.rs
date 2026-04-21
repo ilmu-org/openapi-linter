@@ -48,6 +48,7 @@ pub type DirLintResult = Vec<(PathBuf, Result<Vec<Violation>, LintError>)>;
 /// # Errors
 ///
 /// Propagates [`LintError`] from parsing or ruleset loading.
+#[allow(clippy::too_many_lines)]
 pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violation>, LintError> {
     // Pass 1: parse to serde_json::Value.
     let raw_doc = parser::parse(spec_path)?;
@@ -84,6 +85,14 @@ pub fn lint(spec_path: &Path, ruleset_path: Option<&Path>) -> Result<Vec<Violati
     // Warn about rule IDs in the ruleset that don't match any built-in rule.
     // This matches Spectral's behaviour of printing a warning for unknown rules.
     for rule_id in config.severity_overrides.keys() {
+        // ADR-027: oas3-unused-component is planned but not yet implemented.
+        // Emit an info message instead of the generic unknown-rule warning.
+        if rule_id == "oas3-unused-component" {
+            eprintln!(
+                "[info] oas3-unused-component is not yet implemented (ADR-027). Rule has been skipped."
+            );
+            continue;
+        }
         if !registry.iter().any(|r| r.id() == rule_id) {
             eprintln!("[warn] unknown rule '{rule_id}' in ruleset — no built-in rule with this ID");
         }

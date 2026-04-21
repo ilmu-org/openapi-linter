@@ -1,0 +1,13 @@
+swagger: "2.0"
+info:
+  title: Test API
+  version: "1.0"
+host: api.example.com
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List all pets
+      responses:
+        "200":
+          description: OK
