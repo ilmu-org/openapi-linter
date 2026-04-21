@@ -46,6 +46,7 @@ Tracked (commit normally):
 Plain conventional commits only: `type: what changed`.
 No phase labels (`phase 1`, `phase N`), no step labels, no issue/PR references.
 No em-dashes.
+No `Co-Authored-By` or any AI co-author trailer.
 
 ## Scoping prompt pre-flight
 
