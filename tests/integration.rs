@@ -68,3 +68,51 @@ fn ruleset_can_disable_rule() {
         "operation-operationId should be disabled by ruleset"
     );
 }
+
+// v0.5.0 integration tests
+
+#[test]
+fn oas2_parameter_description_triggers_on_missing_description() {
+    let path = fixtures_dir().join("v0.5.0/oas2-parameter-description.yaml");
+    let violations = lint(&path, None).expect("lint should succeed");
+    let has_violation = violations
+        .iter()
+        .any(|v| v.rule_id == "oas2-parameter-description");
+    assert!(
+        has_violation,
+        "expected oas2-parameter-description violation, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn oas2_api_schemes_triggers_when_absent() {
+    let path = fixtures_dir().join("v0.5.0/oas2-api-schemes.yaml");
+    let violations = lint(&path, None).expect("lint should succeed");
+    let has_violation = violations.iter().any(|v| v.rule_id == "oas2-api-schemes");
+    assert!(
+        has_violation,
+        "expected oas2-api-schemes violation, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn oas2_anyof_triggers_on_anyof_in_schema() {
+    let path = fixtures_dir().join("v0.5.0/oas2-anyof.yaml");
+    let violations = lint(&path, None).expect("lint should succeed");
+    let has_violation = violations.iter().any(|v| v.rule_id == "oas2-anyOf");
+    assert!(
+        has_violation,
+        "expected oas2-anyOf violation, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn oas2_oneof_triggers_on_oneof_in_schema() {
+    let path = fixtures_dir().join("v0.5.0/oas2-oneof.yaml");
+    let violations = lint(&path, None).expect("lint should succeed");
+    let has_violation = violations.iter().any(|v| v.rule_id == "oas2-oneOf");
+    assert!(
+        has_violation,
+        "expected oas2-oneOf violation, got: {violations:#?}"
+    );
+}
