@@ -1,6 +1,9 @@
 //! Shared utilities for rule implementations.
 
+use boon::Compiler;
 use serde_json::Value;
+
+use crate::model::{Severity, Violation};
 
 /// Maximum recursion depth for `$ref` resolution to prevent infinite loops.
 const MAX_REF_DEPTH: u8 = 16;
@@ -91,6 +94,80 @@ pub(crate) fn walk_markdown_fields<'a>(
             }
         }
         _ => {}
+    }
+}
+
+/// Validate a single example value against a schema using boon.
+///
+/// Silently skips validation if boon compilation fails (malformed schema is a
+/// separate concern — the `oas3-schema` / `oas2-schema` rules catch structural
+/// schema errors).
+pub(crate) fn validate_example(
+    schema: &Value,
+    example: &Value,
+    path: &str,
+    out: &mut Vec<Violation>,
+    rule_id: &str,
+) {
+    let schema_uri = "https://refract-linter.internal/example-schema";
+    let mut compiler = Compiler::new();
+    let mut local_schemas = boon::Schemas::new();
+
+    let clean_schema = strip_example_keys(schema);
+
+    if compiler.add_resource(schema_uri, clean_schema).is_err() {
+        return;
+    }
+    let Ok(sch_index) = compiler.compile(schema_uri, &mut local_schemas) else {
+        return;
+    };
+
+    let err = match local_schemas.validate(example, sch_index) {
+        Ok(()) => return,
+        Err(e) => e,
+    };
+
+    collect_leaves(rule_id, &err, path, out);
+}
+
+/// Return a copy of the schema `Value` with `example` and `examples` keys removed.
+///
+/// Stripping both keys prevents boon from interpreting them as draft keywords.
+/// In OAS 2.x schemas the `examples` key does not appear, so stripping it is a no-op.
+pub(crate) fn strip_example_keys(schema: &Value) -> Value {
+    match schema {
+        Value::Object(map) => {
+            let cleaned: serde_json::Map<String, Value> = map
+                .iter()
+                .filter(|(k, _)| *k != "example" && *k != "examples")
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            Value::Object(cleaned)
+        }
+        other => other.clone(),
+    }
+}
+
+/// Recursively collect leaf output units from a boon error tree into violations.
+pub(crate) fn collect_leaves(
+    rule_id: &str,
+    err: &boon::ValidationError<'_, '_>,
+    base_path: &str,
+    out: &mut Vec<Violation>,
+) {
+    if err.causes.is_empty() {
+        let instance_path = format!("{}", err.instance_location);
+        let path = if instance_path.is_empty() || instance_path == "/" {
+            base_path.to_owned()
+        } else {
+            format!("{base_path}{instance_path}")
+        };
+        let message = format!("{}", err.kind);
+        out.push(Violation::new(rule_id, message, Severity::Error, path));
+    } else {
+        for cause in &err.causes {
+            collect_leaves(rule_id, cause, base_path, out);
+        }
     }
 }
 

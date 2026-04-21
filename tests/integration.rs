@@ -116,3 +116,29 @@ fn oas2_oneof_triggers_on_oneof_in_schema() {
         "expected oas2-oneOf violation, got: {violations:#?}"
     );
 }
+
+#[test]
+fn oas3_valid_media_example_triggers_on_invalid_mediatype_example() {
+    let path = fixtures_dir().join("v0.5.0/oas3-valid-media-example.yaml");
+    let violations = lint(&path, None).expect("lint should succeed");
+    let has_violation = violations
+        .iter()
+        .any(|v| v.rule_id == "oas3-valid-media-example");
+    assert!(
+        has_violation,
+        "expected oas3-valid-media-example violation, got: {violations:#?}"
+    );
+}
+
+#[test]
+fn oas2_valid_media_example_triggers_on_invalid_response_example() {
+    let path = fixtures_dir().join("v0.5.0/oas2-valid-media-example.yaml");
+    let violations = lint(&path, None).expect("lint should succeed");
+    let has_violation = violations
+        .iter()
+        .any(|v| v.rule_id == "oas2-valid-media-example");
+    assert!(
+        has_violation,
+        "expected oas2-valid-media-example violation, got: {violations:#?}"
+    );
+}

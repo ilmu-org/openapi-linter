@@ -1,0 +1,36 @@
+openapi: "3.0.3"
+info:
+  title: Media Example Test
+  version: "1.0.0"
+  description: Spec with an invalid MediaType example.
+  contact:
+    name: Test
+    email: test@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: https://api.example-test.internal/v1
+tags:
+  - name: pets
+    description: Pet operations
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List pets
+      description: Returns a list of pets.
+      tags:
+        - pets
+      responses:
+        "200":
+          description: A list of pets.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  age:
+                    type: integer
+              example:
+                age: "not-a-number"

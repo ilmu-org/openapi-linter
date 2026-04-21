@@ -10,12 +10,11 @@
 //! contains `Example` objects (not raw values) — their `value` field is validated
 //! when present. `externalValue` examples are skipped (no HTTP access).
 
-use boon::Compiler;
 use serde_json::Value;
 
 use crate::lint::LintContext;
 use crate::model::{OasVersion, Severity, Violation};
-use crate::rules::util::resolve_ref;
+use crate::rules::util::{self, resolve_ref};
 
 /// Maximum leaf violations emitted per rule call before truncation.
 const MAX_VIOLATIONS: usize = 64;
@@ -94,7 +93,7 @@ fn walk_schemas(doc: &Value, node: &Value, path: &str, out: &mut Vec<Violation>,
 
                 // Validate `example` field.
                 if let Some(example) = map.get("example") {
-                    validate_example(schema_node, example, path, out, rule_id);
+                    util::validate_example(schema_node, example, path, out, rule_id);
                 }
 
                 // Validate `examples` map (OAS 3.x `Example` objects).
@@ -105,7 +104,7 @@ fn walk_schemas(doc: &Value, node: &Value, path: &str, out: &mut Vec<Violation>,
                         if let Value::Object(ex_obj) = example_obj
                             && let Some(value) = ex_obj.get("value")
                         {
-                            validate_example(schema_node, value, &example_path, out, rule_id);
+                            util::validate_example(schema_node, value, &example_path, out, rule_id);
                         }
                     }
                 }
@@ -124,79 +123,6 @@ fn walk_schemas(doc: &Value, node: &Value, path: &str, out: &mut Vec<Violation>,
             }
         }
         _ => {}
-    }
-}
-
-/// Validate a single example value against a schema using boon.
-///
-/// Silently skips validation if boon compilation fails (malformed schema is a
-/// separate concern — the `oas3-schema` rule catches structural schema errors).
-fn validate_example(
-    schema: &Value,
-    example: &Value,
-    path: &str,
-    out: &mut Vec<Violation>,
-    rule_id: &str,
-) {
-    // Build a fresh local registry for this schema.
-    let schema_uri = "https://refract-linter.internal/example-schema";
-    let mut compiler = Compiler::new();
-    let mut local_schemas = boon::Schemas::new();
-
-    // Strip `example`/`examples` from the schema before registering to avoid
-    // boon interpreting them as draft keywords.
-    let clean_schema = strip_example_keys(schema);
-
-    if compiler.add_resource(schema_uri, clean_schema).is_err() {
-        return;
-    }
-    let Ok(sch_index) = compiler.compile(schema_uri, &mut local_schemas) else {
-        return;
-    };
-
-    let err = match local_schemas.validate(example, sch_index) {
-        Ok(()) => return,
-        Err(e) => e,
-    };
-
-    collect_leaves(rule_id, &err, path, out);
-}
-
-/// Return a copy of the schema `Value` with `example` and `examples` keys removed.
-fn strip_example_keys(schema: &Value) -> Value {
-    match schema {
-        Value::Object(map) => {
-            let cleaned: serde_json::Map<String, Value> = map
-                .iter()
-                .filter(|(k, _)| *k != "example" && *k != "examples")
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            Value::Object(cleaned)
-        }
-        other => other.clone(),
-    }
-}
-
-/// Recursively collect leaf output units from a boon error tree into violations.
-fn collect_leaves(
-    rule_id: &str,
-    err: &boon::ValidationError<'_, '_>,
-    base_path: &str,
-    out: &mut Vec<Violation>,
-) {
-    if err.causes.is_empty() {
-        let instance_path = format!("{}", err.instance_location);
-        let path = if instance_path.is_empty() || instance_path == "/" {
-            base_path.to_owned()
-        } else {
-            format!("{base_path}{instance_path}")
-        };
-        let message = format!("{}", err.kind);
-        out.push(Violation::new(rule_id, message, Severity::Error, path));
-    } else {
-        for cause in &err.causes {
-            collect_leaves(rule_id, cause, base_path, out);
-        }
     }
 }
 

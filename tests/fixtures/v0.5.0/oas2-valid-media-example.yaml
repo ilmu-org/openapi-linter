@@ -1,0 +1,37 @@
+swagger: "2.0"
+info:
+  title: Media Example Test
+  version: "1.0.0"
+  description: Swagger 2.0 spec with an invalid response example.
+  contact:
+    name: Test
+    email: test@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+host: api.example-test.internal
+basePath: /v1
+schemes:
+  - https
+tags:
+  - name: pets
+    description: Pet operations
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List pets
+      description: Returns a list of pets.
+      tags:
+        - pets
+      responses:
+        "200":
+          description: A list of pets.
+          schema:
+            type: object
+            properties:
+              age:
+                type: integer
+          examples:
+            application/json:
+              age: "not-a-number"
